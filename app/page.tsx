@@ -238,16 +238,6 @@ export default async function Page() {
                     Waiting on the first briefing payload.
                   </p>
                 )}
-                <div className="mt-6 flex flex-wrap justify-center gap-6 text-[10px] uppercase tracking-widest text-[color:var(--muted-ink)]">
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-50">Ingest:</span>
-                    <span className="font-mono text-slate-900">POST /api/brief</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-50">Status:</span>
-                    <span className="text-slate-900">End-to-End Verified</span>
-                  </div>
-                </div>
               </div>
             </Section>
           </div>
