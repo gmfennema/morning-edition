@@ -406,8 +406,10 @@ export default async function Page() {
                   <div>Brief Object: {brief ? "Yes" : "No"}</div>
                   <div>Timestamp: {updatedAt?.toISOString() ?? "N/A"}</div>
                   <div className="mt-2 uppercase tracking-tighter">Env Checks:</div>
-                  <div>KV_URL: {process.env.KV_REST_API_URL ? "Set" : "MISSING"}</div>
-                  <div>KV_TOKEN: {process.env.KV_REST_API_TOKEN ? "Set" : "MISSING"}</div>
+                  <div>KV_URL: {process.env.KV_REST_API_URL ? `Set (${process.env.KV_REST_API_URL.slice(0, 15)}...)` : "MISSING"}</div>
+                  <div>KV_TOKEN: {process.env.KV_REST_API_TOKEN ? "Set (present)" : "MISSING"}</div>
+                  <div>SECRET: {process.env.MORNING_EDITION_SHARED_SECRET ? "Set" : "MISSING"}</div>
+                  <div>OTHER KV: {Object.keys(process.env).filter(k => k.startsWith('KV_')).join(', ')}</div>
                 </div>
               </Section>
             </div>
