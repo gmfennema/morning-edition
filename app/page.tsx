@@ -434,35 +434,6 @@ export default async function Page() {
                 <MetricsSection metrics={metrics} />
               </div>
             </Section>
-
-            <div className="mt-6">
-              <Section title="Debug Info" kicker="System diagnostics">
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-[10px] leading-4 text-[color:var(--muted-ink)]">
-                  <div>Redis Key: {LATEST_KEY}</div>
-                  <div>Data Present: {stored ? "Yes" : "No"}</div>
-                  <div>Brief Object: {brief ? "Yes" : "No"}</div>
-                  <div>Timestamp: {updatedAt?.toISOString() ?? "N/A"}</div>
-                  <div className="mt-2 uppercase tracking-tighter">Env Checks:</div>
-                  <div>KV_URL: {process.env.KV_REST_API_URL ? `Set (${process.env.KV_REST_API_URL.slice(0, 15)}...)` : "MISSING"}</div>
-                  <div>KV_TOKEN: {process.env.KV_REST_API_TOKEN ? "Set (present)" : "MISSING"}</div>
-                  <div>SECRET: {process.env.MORNING_EDITION_SHARED_SECRET ? "Set" : "MISSING"}</div>
-                  <div>OTHER KV: {Object.keys(process.env).filter(k => k.startsWith('KV_')).join(', ')}</div>
-                </div>
-              </Section>
-            </div>
-
-            <div className="mt-6">
-              <Section title="Raw Payload" kicker="debug">
-                <details className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
-                  <summary className="cursor-pointer text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                    View latest JSON
-                  </summary>
-                  <pre className="mt-4 max-h-[520px] overflow-auto text-xs leading-5">
-                    {stored ? JSON.stringify(stored, null, 2) : "(none)"}
-                  </pre>
-                </details>
-              </Section>
-            </div>
           </div>
         </main>
 
