@@ -196,34 +196,31 @@ export default async function Page() {
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
-        <header className="border-b border-[color:var(--rule)] pb-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.22em] text-[color:var(--muted-ink)]">
-                Executive Dashboard
-              </div>
-              <h1 className="font-display mt-1 text-4xl leading-none tracking-tight md:text-5xl">
-                The Morning Edition
-              </h1>
+        <header className="border-b border-[color:var(--rule)] pb-6 text-center">
+          <div className="text-[11px] uppercase tracking-[0.25em] text-[color:var(--muted-ink)]">
+            Executive Dashboard
+          </div>
+          <h1 className="font-display mt-3 text-5xl leading-none tracking-tight md:text-7xl">
+            The Morning Edition
+          </h1>
+          <div className="mt-6 flex flex-col items-center justify-center gap-2 border-t border-[color:var(--rule)] pt-4 md:flex-row md:gap-8">
+            <div className="text-sm uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+              {today.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
             </div>
-            <div className="text-right">
-              <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                {today.toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </div>
-              <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
-                {updatedAt
-                  ? `Updated ${updatedAt.toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}`
-                  : "No briefing loaded yet"}
-              </div>
+            <div className="hidden h-1 w-1 rounded-full bg-[color:var(--rule)] md:block" />
+            <div className="text-xs italic text-[color:var(--muted-ink)]">
+              {updatedAt
+                ? `Updated ${updatedAt.toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}`
+                : "No briefing loaded yet"}
             </div>
           </div>
         </header>
@@ -231,24 +228,24 @@ export default async function Page() {
         <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="lg:col-span-12">
             <Section title="Top Briefing" kicker="2-sentence synthesis">
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-6 text-center">
                 {executiveSummary ? (
-                  <p className="text-[15px] leading-7">{executiveSummary}</p>
+                  <p className="mx-auto max-w-3xl text-lg leading-relaxed italic">
+                    "{executiveSummary}"
+                  </p>
                 ) : (
                   <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
                     Waiting on the first briefing payload.
                   </p>
                 )}
-                <div className="mt-4 grid grid-cols-1 gap-3 text-xs text-[color:var(--muted-ink)] md:grid-cols-2">
-                  <div>
-                    <div className="uppercase tracking-[0.18em]">Ingest endpoint</div>
-                    <div className="mt-1 font-mono">POST /api/brief</div>
+                <div className="mt-6 flex flex-wrap justify-center gap-6 text-[10px] uppercase tracking-widest text-[color:var(--muted-ink)]">
+                  <div className="flex items-center gap-2">
+                    <span className="opacity-50">Ingest:</span>
+                    <span className="font-mono text-slate-900">POST /api/brief</span>
                   </div>
-                  <div>
-                    <div className="uppercase tracking-[0.18em]">Auth</div>
-                    <div className="mt-1">
-                      <span className="font-mono">x-shared-secret</span> or Bearer token
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span className="opacity-50">Status:</span>
+                    <span className="text-slate-900">End-to-End Verified</span>
                   </div>
                 </div>
               </div>
