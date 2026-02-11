@@ -269,13 +269,6 @@ export default async function Page() {
                             {item.tag ? ` · ${item.tag}` : ""}
                           </div>
                         </div>
-                        <button
-                          className="shrink-0 rounded-sm border border-[color:var(--rule)] bg-white/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]"
-                          disabled
-                          title="Investigate flow (Reporter Agent) will be wired next"
-                        >
-                          Investigate
-                        </button>
                       </div>
                     </li>
                   ))}
