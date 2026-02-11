@@ -104,6 +104,65 @@ function Section({
   );
 }
 
+function MetricsSection({ metrics }: { metrics: AnyObj | null }) {
+  if (!metrics) {
+    return (
+      <div className="text-sm text-[color:var(--muted-ink)]">
+        Add <span className="font-mono">intelligenceMetrics</span> to the briefing JSON.
+      </div>
+    );
+  }
+
+  const volume = metrics.telegram_volume as Record<string, number> | undefined;
+  const maxVol = volume ? Math.max(...Object.values(volume), 1) : 0;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+        {Object.entries(metrics).map(([key, val]) => {
+          if (key === "telegram_volume") return null;
+          return (
+            <div key={key} className="relative">
+              <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                {key.replace(/_/g, " ")}
+              </div>
+              <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                {String(val)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {volume ? (
+        <div className="pt-2">
+          <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] border-b border-[color:var(--rule)] pb-1">
+            7-Day Digital Pulse
+          </div>
+          <div className="space-y-3">
+            {Object.entries(volume).map(([day, count]) => (
+              <div key={day} className="group flex items-center gap-3">
+                <div className="w-8 text-[10px] font-medium uppercase text-[color:var(--muted-ink)]">
+                  {day}
+                </div>
+                <div className="relative h-3 flex-1 bg-slate-50 border border-slate-100/50">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-slate-900 transition-all duration-500"
+                    style={{ width: `${(count / maxVol) * 100}%` }}
+                  />
+                </div>
+                <div className="w-8 text-right text-[10px] font-mono text-slate-900">
+                  {count}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function Page() {
   const stored = await readLatestBriefing().catch(() => null);
   const brief = (stored?.data ?? null) as AnyObj | null;
@@ -385,16 +444,7 @@ export default async function Page() {
           <div className="lg:col-span-5">
             <Section title="Intelligence Metrics" kicker="burn rate & pulse">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
-                {metrics ? (
-                  <pre className="max-h-[420px] overflow-auto text-xs leading-5 text-[color:var(--muted-ink)]">
-                    {JSON.stringify(metrics, null, 2)}
-                  </pre>
-                ) : (
-                  <div className="text-sm text-[color:var(--muted-ink)]">
-                    Add <span className="font-mono">intelligenceMetrics</span> to the
-                    briefing JSON.
-                  </div>
-                )}
+                <MetricsSection metrics={metrics} />
               </div>
             </Section>
 
