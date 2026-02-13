@@ -6,6 +6,7 @@ type AnyObj = Record<string, any>;
 
 type NewsItem = {
   headline: string;
+  summary?: string;
   url?: string;
   source?: string;
   tag?: string;
@@ -16,6 +17,42 @@ type CalendarItem = {
   tag?: string;
   details?: string;
 };
+
+type Balances = {
+  asOf?: string;
+  savings?: number;
+  checking?: number;
+  hsa?: number;
+  retirementTotal?: number;
+};
+
+function asNumber(x: unknown): number | null {
+  if (typeof x === "number" && Number.isFinite(x)) return x;
+  if (typeof x !== "string") return null;
+  const raw = x.trim();
+  if (!raw) return null;
+
+  const negative = raw.startsWith("(") && raw.endsWith(")");
+  const cleaned = raw
+    .replace(/[$,]/g, "")
+    .replace(/[()]/g, "")
+    .replace(/\s+/g, "");
+
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return null;
+  return negative ? -n : n;
+}
+
+const USD_FMT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+function formatUsd(x: number | null | undefined): string {
+  if (typeof x !== "number" || !Number.isFinite(x)) return "—";
+  return USD_FMT.format(x);
+}
 
 function asText(x: unknown): string | null {
   if (typeof x === "string") return x;
@@ -35,6 +72,15 @@ function normalizeNews(brief: AnyObj | null): NewsItem[] {
       return {
         headline:
           it.headline ?? it.title ?? it.text ?? it.name ?? "(untitled headline)",
+        summary:
+          asText(
+            it.summary ??
+              it.dek ??
+              it.blurb ??
+              it.description ??
+              it.snippet ??
+              it.abstract,
+          ) ?? undefined,
         url: it.url ?? it.link,
         source: it.source ?? it.outlet,
         tag: it.tag,
@@ -78,6 +124,38 @@ function normalizeCalendar(brief: AnyObj | null): {
       .filter(Boolean) as CalendarItem[];
 
   return { today: norm(today), tomorrow: norm(tomorrow) };
+}
+
+function normalizeBalances(brief: AnyObj | null): Balances | null {
+  const raw =
+    brief?.balances ?? brief?.accountBalances ?? brief?.account_balances ?? null;
+
+  if (!raw || typeof raw !== "object") return null;
+  const b = raw as AnyObj;
+
+  const asOf = asText(b.asOf ?? b.as_of) ?? undefined;
+  const savings = asNumber(b.savings ?? b.Savings) ?? undefined;
+  const checking = asNumber(b.checking ?? b.Checking) ?? undefined;
+  const hsa = asNumber(b.hsa ?? b.HSA) ?? undefined;
+  const retirementTotal =
+    asNumber(
+      b.retirementTotal ??
+        b.retirement_total ??
+        b.retirementTotalUsd ??
+        b.retirement_total_usd ??
+        b.retirement,
+    ) ?? undefined;
+
+  if (
+    typeof savings === "undefined" &&
+    typeof checking === "undefined" &&
+    typeof hsa === "undefined" &&
+    typeof retirementTotal === "undefined"
+  ) {
+    return null;
+  }
+
+  return { asOf, savings, checking, hsa, retirementTotal };
 }
 
 function Section({
@@ -189,6 +267,7 @@ export default async function Page() {
         : []) as any[];
 
   const metrics = brief?.intelligenceMetrics ?? brief?.metrics;
+  const balances = normalizeBalances(brief);
 
   const updatedAt = stored?.storedAt ? new Date(stored.storedAt) : null;
   const today = new Date();
@@ -268,6 +347,11 @@ export default async function Page() {
                             {item.source ? item.source : ""}
                             {item.tag ? ` · ${item.tag}` : ""}
                           </div>
+                          {item.summary ? (
+                            <p className="mt-2 text-[13px] leading-6 text-[color:var(--muted-ink)]">
+                              {item.summary}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
                     </li>
@@ -306,6 +390,63 @@ export default async function Page() {
                 </p>
               </div>
             </Section>
+
+            <div className="mt-6">
+              <Section
+                title="Balances"
+                kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
+              >
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+                  {balances ? (
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                          Savings
+                        </div>
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                          {formatUsd(balances.savings)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                          Checking
+                        </div>
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                          {formatUsd(balances.checking)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                          HSA
+                        </div>
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                          {formatUsd(balances.hsa)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                          Retirement total
+                        </div>
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                          {formatUsd(balances.retirementTotal)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-[color:var(--muted-ink)]">
+                      Add <span className="font-mono">balances</span> to the briefing JSON (
+                      <span className="font-mono">savings</span>,
+                      <span className="font-mono">checking</span>,
+                      <span className="font-mono">hsa</span>,
+                      <span className="font-mono">retirementTotal</span>).
+                    </div>
+                  )}
+                </div>
+              </Section>
+            </div>
 
             <div className="mt-6">
               <Section title="Mission Outlook" kicker="48-hour view">
