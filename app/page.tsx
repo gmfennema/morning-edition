@@ -170,7 +170,7 @@ function Section({
   return (
     <section className="border-t border-[color:var(--rule)] pt-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="font-serif text-xl tracking-tight">{title}</h2>
+        <h2 className="font-display text-xl tracking-tight">{title}</h2>
         {kicker ? (
           <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
             {kicker}
@@ -204,7 +204,7 @@ function MetricsSection({ metrics }: { metrics: AnyObj | null }) {
               <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
                 {key.replace(/_/g, " ")}
               </div>
-              <div className="font-serif mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+              <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
                 {String(val)}
               </div>
             </div>
@@ -279,7 +279,7 @@ export default async function Page() {
           <div className="text-[11px] uppercase tracking-[0.25em] text-[color:var(--muted-ink)]">
             Executive Dashboard
           </div>
-          <h1 className="font-serif mt-3 text-5xl leading-none tracking-tight md:text-7xl">
+          <h1 className="font-display mt-3 text-5xl leading-none tracking-tight md:text-7xl">
             The Morning Edition
           </h1>
           <div className="mt-6 flex flex-col items-center justify-center gap-2 border-t border-[color:var(--rule)] pt-4 md:flex-row md:gap-8">
@@ -375,9 +375,9 @@ export default async function Page() {
                   <div className="text-sm">
                     {typeof hi !== "undefined" || typeof lo !== "undefined" ? (
                       <span>
-                        <span className="font-serif">{hi ?? "—"}</span>
+                        <span className="font-display">{hi ?? "—"}</span>
                         <span className="text-[color:var(--muted-ink)]"> / </span>
-                        <span className="font-serif">{lo ?? "—"}</span>
+                        <span className="font-display">{lo ?? "—"}</span>
                       </span>
                     ) : (
                       <span className="text-[color:var(--muted-ink)]">—</span>
@@ -403,7 +403,7 @@ export default async function Page() {
                         <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
                           Savings
                         </div>
-                        <div className="font-serif mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
                           {formatUsd(balances.savings)}
                         </div>
                       </div>
@@ -412,7 +412,7 @@ export default async function Page() {
                         <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
                           Checking
                         </div>
-                        <div className="font-serif mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
                           {formatUsd(balances.checking)}
                         </div>
                       </div>
@@ -421,7 +421,7 @@ export default async function Page() {
                         <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
                           HSA
                         </div>
-                        <div className="font-serif mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
                           {formatUsd(balances.hsa)}
                         </div>
                       </div>
@@ -430,7 +430,7 @@ export default async function Page() {
                         <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
                           Retirement total
                         </div>
-                        <div className="font-serif mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
                           {formatUsd(balances.retirementTotal)}
                         </div>
                       </div>
@@ -509,7 +509,7 @@ export default async function Page() {
                       className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
                     >
                       <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-serif text-lg">
+                        <div className="font-display text-lg">
                           {p.name ?? p.project ?? `Project ${idx + 1}`}
                         </div>
                         {p.vercelUrl ? (
