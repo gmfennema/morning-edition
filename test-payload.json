@@ -1,0 +1,73 @@
+{
+  "executiveSummary": "This is a verification test of the new Morning Edition dashboard. The system is functioning correctly.",
+  "generatedAt": "2026-02-11T05:55:00Z",
+  "fieldIntelligence": [
+    {
+      "headline": "Morning Edition Dashboard Successfully Deployed",
+      "summary": "The dashboard is live and pulling the latest briefing payload from storage. Visual layout, auth, and ingest endpoint are all behaving as expected.",
+      "url": "https://morning-edition.vercel.app",
+      "source": "System",
+      "tag": "Verification"
+    },
+    {
+      "headline": "Vercel Deployment Pipeline Active",
+      "summary": "Build and deploy automation is running cleanly, with no red flags in the pipeline. This reduces the odds of the morning briefing arriving half-baked.",
+      "source": "Vercel",
+      "tag": "Infrastructure"
+    }
+  ],
+  "weather": {
+    "narrative": "Clear skies for the launch.",
+    "high": 75,
+    "low": 50
+  },
+  "balances": {
+    "asOf": "2026-02-11",
+    "savings": 12000,
+    "checking": 2500,
+    "hsa": 3400,
+    "retirementTotal": 78500
+  },
+  "storage": {
+    "generatedAt": "2026-02-11T05:55:00Z",
+    "root": {
+      "mount": "/System/Volumes/Data",
+      "filesystem": "/dev/disk3s5",
+      "totalBytes": 1000000000000,
+      "usedBytes": 420000000000,
+      "freeBytes": 580000000000,
+      "percentUsed": 42
+    },
+    "documents": {
+      "path": "/Users/gabefennema/Documents",
+      "bytes": 1234567890
+    },
+    "topFolders": [
+      { "name": "Projects", "path": "/Users/gabefennema/Documents/Projects", "bytes": 987654321 },
+      { "name": "Archive", "path": "/Users/gabefennema/Documents/Archive", "bytes": 234567890 }
+    ]
+  },
+  "missionOutlook": {
+    "today": [
+      {
+        "tag": "DEPLOY",
+        "details": "Morning Edition v1 Launch"
+      }
+    ],
+    "tomorrow": []
+  },
+  "projectPulse": [
+    {
+      "name": "The Morning Edition",
+      "vercelUrl": "https://morning-edition.vercel.app",
+      "recentWins": ["Initial Deployment", "Basic Auth Configured"],
+      "stillToDo": ["Connect Reporter Agent"]
+    }
+  ],
+  "intelligenceMetrics": {
+    "burnRate": {
+      "openai": "$0.00",
+      "anthropic": "$0.00"
+    }
+  }
+}

@@ -26,6 +26,29 @@ type Balances = {
   retirementTotal?: number;
 };
 
+type StorageFolder = {
+  name: string;
+  path?: string;
+  bytes: number;
+};
+
+type StorageVitals = {
+  generatedAt?: string;
+  root?: {
+    mount?: string;
+    filesystem?: string;
+    totalBytes?: number;
+    usedBytes?: number;
+    freeBytes?: number;
+    percentUsed?: number;
+  };
+  documents?: {
+    path?: string;
+    bytes?: number;
+  };
+  topFolders?: StorageFolder[];
+};
+
 function asNumber(x: unknown): number | null {
   if (typeof x === "number" && Number.isFinite(x)) return x;
   if (typeof x !== "string") return null;
@@ -52,6 +75,26 @@ const USD_FMT = new Intl.NumberFormat("en-US", {
 function formatUsd(x: number | null | undefined): string {
   if (typeof x !== "number" || !Number.isFinite(x)) return "—";
   return USD_FMT.format(x);
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return "—";
+
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let i = 0;
+  let v = bytes;
+
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+
+  const digits = i <= 1 ? 0 : v >= 100 ? 0 : v >= 10 ? 1 : 2;
+  return `${v.toFixed(digits)} ${units[i]}`;
 }
 
 function asText(x: unknown): string | null {
@@ -156,6 +199,271 @@ function normalizeBalances(brief: AnyObj | null): Balances | null {
   }
 
   return { asOf, savings, checking, hsa, retirementTotal };
+}
+
+function normalizeStorage(brief: AnyObj | null): StorageVitals | null {
+  const raw =
+    brief?.storage ??
+    brief?.storageVitals ??
+    brief?.storage_vitals ??
+    brief?.storage_vital ??
+    null;
+
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as AnyObj;
+
+  const generatedAt = asText(s.generatedAt ?? s.generated_at) ?? undefined;
+
+  const rootRaw =
+    (s.root && typeof s.root === "object" ? s.root : null) ??
+    (s.rootDisk && typeof s.rootDisk === "object" ? s.rootDisk : null) ??
+    (s.root_disk && typeof s.root_disk === "object" ? s.root_disk : null) ??
+    null;
+
+  const rootObj = (rootRaw ?? {}) as AnyObj;
+
+  const totalBytes =
+    asNumber(
+      rootObj.totalBytes ??
+        rootObj.total_bytes ??
+        rootObj.total ??
+        rootObj.sizeBytes ??
+        rootObj.size_bytes,
+    ) ?? undefined;
+
+  const usedBytes =
+    asNumber(rootObj.usedBytes ?? rootObj.used_bytes ?? rootObj.used) ?? undefined;
+
+  const freeBytes =
+    asNumber(
+      rootObj.freeBytes ??
+        rootObj.free_bytes ??
+        rootObj.availBytes ??
+        rootObj.availableBytes ??
+        rootObj.available_bytes ??
+        rootObj.free,
+    ) ?? undefined;
+
+  const percentUsed =
+    asNumber(
+      rootObj.percentUsed ??
+        rootObj.percent_used ??
+        rootObj.capacityPercent ??
+        rootObj.capacity_percent,
+    ) ??
+    (typeof rootObj.capacity === "string"
+      ? asNumber(rootObj.capacity.replace(/%$/, ""))
+      : asNumber(rootObj.capacity)) ??
+    undefined;
+
+  const rootMount = asText(rootObj.mount ?? rootObj.mountedOn ?? rootObj.mounted_on) ?? undefined;
+  const filesystem = asText(rootObj.filesystem ?? rootObj.fs) ?? undefined;
+
+  const docsRaw =
+    (s.documents && typeof s.documents === "object" ? s.documents : null) ??
+    (s.docs && typeof s.docs === "object" ? s.docs : null) ??
+    null;
+
+  const docs = docsRaw as AnyObj | null;
+  const documentsPath = docs ? asText(docs.path) ?? undefined : undefined;
+  const documentsBytes = docs ? asNumber(docs.bytes ?? docs.sizeBytes ?? docs.size_bytes) ?? undefined : undefined;
+
+  const topRaw =
+    (Array.isArray(s.topFolders)
+      ? s.topFolders
+      : Array.isArray(s.top_folders)
+        ? s.top_folders
+        : []) as any[];
+
+  const topFolders: StorageFolder[] = topRaw
+    .map((it) => {
+      if (!it || typeof it !== "object") return null;
+      const o = it as AnyObj;
+      const name = asText(o.name ?? o.folder ?? o.label) ?? null;
+      const bytes = asNumber(o.bytes ?? o.sizeBytes ?? o.size_bytes ?? o.size) ?? null;
+      if (!name || typeof bytes !== "number") return null;
+      return { name, path: asText(o.path) ?? undefined, bytes };
+    })
+    .filter(Boolean) as StorageFolder[];
+
+  const hasRoot =
+    typeof totalBytes === "number" || typeof usedBytes === "number" || typeof freeBytes === "number";
+
+  const hasDocs = typeof documentsBytes === "number";
+
+  const hasTop = topFolders.length > 0;
+
+  if (!hasRoot && !hasDocs && !hasTop) return null;
+
+  return {
+    generatedAt,
+    root: hasRoot
+      ? {
+          mount: rootMount,
+          filesystem,
+          totalBytes,
+          usedBytes,
+          freeBytes,
+          percentUsed,
+        }
+      : undefined,
+    documents: hasDocs || documentsPath ? { path: documentsPath, bytes: documentsBytes } : undefined,
+    topFolders: hasTop ? topFolders : undefined,
+  };
+}
+
+type DonutSegment = { label: string; value: number; color: string };
+
+function DonutChart({
+  segments,
+  size = 168,
+  thickness = 18,
+}: {
+  segments: DonutSegment[];
+  size?: number;
+  thickness?: number;
+}) {
+  const total = segments.reduce((sum, s) => sum + (Number.isFinite(s.value) ? s.value : 0), 0);
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+
+  let offset = 0;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Storage usage">
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="transparent"
+          stroke="rgb(241 245 249)"
+          strokeWidth={thickness}
+        />
+        {segments.map((s) => {
+          const frac = total > 0 ? s.value / total : 0;
+          const dash = clamp(frac, 0, 1) * c;
+          const dashArray = `${dash} ${c - dash}`;
+          const dashOffset = -offset;
+          offset += dash;
+          return (
+            <circle
+              key={s.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="transparent"
+              stroke={s.color}
+              strokeWidth={thickness}
+              strokeDasharray={dashArray}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="butt"
+            />
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+function StorageSection({ storage }: { storage: StorageVitals | null }) {
+  const root = storage?.root;
+  const total =
+    typeof root?.totalBytes === "number"
+      ? root.totalBytes
+      : typeof root?.usedBytes === "number" && typeof root?.freeBytes === "number"
+        ? root.usedBytes + root.freeBytes
+        : null;
+
+  const used =
+    typeof root?.usedBytes === "number"
+      ? root.usedBytes
+      : typeof total === "number" && typeof root?.freeBytes === "number"
+        ? total - root.freeBytes
+        : null;
+
+  const free =
+    typeof root?.freeBytes === "number"
+      ? root.freeBytes
+      : typeof total === "number" && typeof used === "number"
+        ? total - used
+        : null;
+
+  if (typeof total !== "number" || total <= 0 || typeof used !== "number" || typeof free !== "number") {
+    return (
+      <div className="text-sm text-[color:var(--muted-ink)]">
+        Add <span className="font-mono">storage</span> (root total/used/free) to the briefing JSON.
+      </div>
+    );
+  }
+
+  const docs = typeof storage?.documents?.bytes === "number" ? storage.documents.bytes : null;
+  const docsUsed = docs && docs > 0 ? Math.min(docs, used) : 0;
+  const otherUsed = Math.max(used - docsUsed, 0);
+  const reserved = Math.max(total - used - free, 0);
+
+  const segments: DonutSegment[] = [
+    ...(docsUsed > 0
+      ? [{ label: "Documents", value: docsUsed, color: "rgb(51 65 85)" }]
+      : []),
+    { label: "Other used", value: otherUsed, color: "rgb(15 23 42)" },
+    ...(reserved > 0
+      ? [{ label: "Reserved/purgeable", value: reserved, color: "rgb(203 213 225)" }]
+      : []),
+    { label: "Available", value: Math.max(free, 0), color: "rgb(226 232 240)" },
+  ];
+
+  const percentUsed =
+    typeof root?.percentUsed === "number"
+      ? root.percentUsed
+      : total > 0
+        ? (used / total) * 100
+        : 0;
+
+  const top = storage?.topFolders ?? [];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-5">
+        <div className="shrink-0">
+          <DonutChart segments={segments} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+            Root disk
+          </div>
+          <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+            {Math.round(percentUsed)}% used
+          </div>
+          <div className="mt-2 text-xs text-[color:var(--muted-ink)]">
+            {formatBytes(used)} used · {formatBytes(free)} available · {formatBytes(total)} total
+            {reserved > 0 ? <span> · {formatBytes(reserved)} purgeable</span> : null}
+          </div>
+          {docsUsed > 0 ? (
+            <div className="mt-3 text-xs text-[color:var(--muted-ink)]">
+              Documents: <span className="font-mono">{formatBytes(docsUsed)}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {top.length ? (
+        <div>
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] border-b border-[color:var(--rule)] pb-1">
+            Top folders in Documents
+          </div>
+          <ul className="space-y-2 text-xs">
+            {top.slice(0, 8).map((f) => (
+              <li key={f.path ?? f.name} className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate font-mono">{f.name}</span>
+                <span className="shrink-0 text-[color:var(--muted-ink)]">{formatBytes(f.bytes)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function Section({
@@ -268,6 +576,7 @@ export default async function Page() {
 
   const metrics = brief?.intelligenceMetrics ?? brief?.metrics;
   const balances = normalizeBalances(brief);
+  const storage = normalizeStorage(brief);
 
   const updatedAt = stored?.storedAt ? new Date(stored.storedAt) : null;
   const today = new Date();
@@ -444,6 +753,21 @@ export default async function Page() {
                       <span className="font-mono">retirementTotal</span>).
                     </div>
                   )}
+                </div>
+              </Section>
+            </div>
+
+            <div className="mt-6">
+              <Section
+                title="Storage"
+                kicker={
+                  typeof storage?.root?.percentUsed === "number"
+                    ? `${Math.round(storage.root.percentUsed)}% used`
+                    : "disk snapshot"
+                }
+              >
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+                  <StorageSection storage={storage} />
                 </div>
               </Section>
             </div>
