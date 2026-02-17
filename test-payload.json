@@ -16,6 +16,15 @@
       "tag": "Infrastructure"
     }
   ],
+  "newsletters": [
+    {
+      "sender": "Stratechery <hello@stratechery.com>",
+      "subject": "The Morning Edition Test Newsletter",
+      "summary": "This is a sample newsletter item to verify rendering. In production, this comes from Gmail label: newsletters.",
+      "url": "https://mail.google.com/mail/u/0/#all/XXXXXXXXXXXXXXXX",
+      "receivedAt": "2026-02-11T05:30:00Z"
+    }
+  ],
   "weather": {
     "narrative": "Clear skies for the launch.",
     "high": 75,

@@ -12,6 +12,14 @@ type NewsItem = {
   tag?: string;
 };
 
+type NewsletterItem = {
+  subject: string;
+  sender?: string;
+  summary?: string;
+  url?: string;
+  receivedAt?: string;
+};
+
 type CalendarItem = {
   when?: string;
   tag?: string;
@@ -130,6 +138,47 @@ function normalizeNews(brief: AnyObj | null): NewsItem[] {
       } satisfies NewsItem;
     })
     .filter(Boolean) as NewsItem[];
+}
+
+function normalizeNewsletters(brief: AnyObj | null): NewsletterItem[] {
+  const raw =
+    brief?.newsletters ??
+    brief?.newsletterDigest ??
+    brief?.newsletter_digest ??
+    brief?.newsletterHighlights ??
+    brief?.newsletter_highlights ??
+    null;
+
+  const items =
+    (Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.items)
+        ? raw.items
+        : []) as any[];
+
+  return items
+    .map((it) => {
+      if (typeof it === "string") return { subject: it } satisfies NewsletterItem;
+      if (!it || typeof it !== "object") return null;
+      return {
+        subject:
+          it.subject ?? it.title ?? it.headline ?? it.name ?? "(no subject)",
+        sender: asText(it.sender ?? it.from ?? it.author ?? it.source) ?? undefined,
+        summary:
+          asText(
+            it.summary ??
+              it.snippet ??
+              it.blurb ??
+              it.description ??
+              it.abstract,
+          ) ?? undefined,
+        url: it.url ?? it.link,
+        receivedAt:
+          asText(it.receivedAt ?? it.received_at ?? it.date ?? it.when) ??
+          undefined,
+      } satisfies NewsletterItem;
+    })
+    .filter(Boolean) as NewsletterItem[];
 }
 
 function normalizeCalendar(brief: AnyObj | null): {
@@ -565,6 +614,7 @@ export default async function Page() {
   const lo = weather?.low ?? weather?.lo;
 
   const news = normalizeNews(brief);
+  const newsletters = normalizeNewsletters(brief);
   const cal = normalizeCalendar(brief);
 
   const projects =
@@ -821,6 +871,65 @@ export default async function Page() {
                 </div>
               </Section>
             </div>
+          </div>
+
+          <div className="lg:col-span-12">
+            <Section
+              title="Newsletter Digest"
+              kicker="last 24h (Gmail label: newsletters)"
+            >
+              {newsletters.length ? (
+                <ul className="space-y-4">
+                  {newsletters.slice(0, 3).map((n, idx) => {
+                    const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                    const dtText =
+                      dt && !Number.isNaN(dt.valueOf())
+                        ? dt.toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : null;
+
+                    return (
+                      <li
+                        key={idx}
+                        className="border-b border-[color:var(--rule)] pb-4"
+                      >
+                        <div className="text-[15px] leading-6">
+                          {n.url ? (
+                            <a
+                              href={n.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                            >
+                              {n.subject}
+                            </a>
+                          ) : (
+                            <span>{n.subject}</span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
+                          {n.sender ? n.sender : "Unknown sender"}
+                          {dtText ? ` · ${dtText}` : ""}
+                        </div>
+                        {n.summary ? (
+                          <p className="mt-2 text-[13px] leading-6 text-[color:var(--muted-ink)]">
+                            {n.summary}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                  No newsletters yet.
+                </div>
+              )}
+            </Section>
           </div>
 
           <div className="lg:col-span-7">
