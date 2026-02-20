@@ -1,8 +1,8 @@
-import { readLatestBriefing, LATEST_KEY } from "../lib/storage";
+import { readLatestBriefing } from "../lib/storage";
 
 export const dynamic = "force-dynamic";
 
-type AnyObj = Record<string, any>;
+type AnyObj = Record<string, unknown>;
 
 type NewsItem = {
   headline: string;
@@ -16,6 +16,9 @@ type NewsletterItem = {
   subject: string;
   sender?: string;
   summary?: string;
+  /** Full (or near-full) newsletter body from the briefing payload. */
+  body?: string;
+  /** Link to the message in Gmail (preferred), or a web link fallback. */
   url?: string;
   receivedAt?: string;
 };
@@ -111,30 +114,43 @@ function asText(x: unknown): string | null {
   return null;
 }
 
+function asObj(x: unknown): AnyObj | null {
+  if (!x || typeof x !== "object") return null;
+  return x as AnyObj;
+}
+
 function normalizeNews(brief: AnyObj | null): NewsItem[] {
   const fi = brief?.fieldIntelligence ?? brief?.field_intelligence ?? brief?.news;
-  const items =
-    (Array.isArray(fi) ? fi : Array.isArray(fi?.items) ? fi.items : []) as any[];
+  const fiObj = asObj(fi);
+
+  const items: unknown[] = Array.isArray(fi)
+    ? fi
+    : Array.isArray(fiObj?.items)
+      ? (fiObj.items as unknown[])
+      : [];
 
   return items
     .map((it) => {
-      if (typeof it === "string") return { headline: it };
-      if (!it || typeof it !== "object") return null;
+      if (typeof it === "string") return { headline: it } satisfies NewsItem;
+      const o = asObj(it);
+      if (!o) return null;
+
       return {
         headline:
-          it.headline ?? it.title ?? it.text ?? it.name ?? "(untitled headline)",
+          asText(o.headline ?? o.title ?? o.text ?? o.name) ??
+          "(untitled headline)",
         summary:
           asText(
-            it.summary ??
-              it.dek ??
-              it.blurb ??
-              it.description ??
-              it.snippet ??
-              it.abstract,
+            o.summary ??
+              o.dek ??
+              o.blurb ??
+              o.description ??
+              o.snippet ??
+              o.abstract,
           ) ?? undefined,
-        url: it.url ?? it.link,
-        source: it.source ?? it.outlet,
-        tag: it.tag,
+        url: asText(o.url ?? o.link) ?? undefined,
+        source: asText(o.source ?? o.outlet) ?? undefined,
+        tag: asText(o.tag) ?? undefined,
       } satisfies NewsItem;
     })
     .filter(Boolean) as NewsItem[];
@@ -149,36 +165,393 @@ function normalizeNewsletters(brief: AnyObj | null): NewsletterItem[] {
     brief?.newsletter_highlights ??
     null;
 
-  const items =
-    (Array.isArray(raw)
-      ? raw
-      : Array.isArray(raw?.items)
-        ? raw.items
-        : []) as any[];
+  const rawObj = asObj(raw);
+
+  const items: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray(rawObj?.items)
+      ? (rawObj.items as unknown[])
+      : [];
 
   return items
     .map((it) => {
       if (typeof it === "string") return { subject: it } satisfies NewsletterItem;
-      if (!it || typeof it !== "object") return null;
+      const o = asObj(it);
+      if (!o) return null;
+
       return {
         subject:
-          it.subject ?? it.title ?? it.headline ?? it.name ?? "(no subject)",
-        sender: asText(it.sender ?? it.from ?? it.author ?? it.source) ?? undefined,
+          asText(o.subject ?? o.title ?? o.headline ?? o.name) ?? "(no subject)",
+        sender: asText(o.sender ?? o.from ?? o.author ?? o.source) ?? undefined,
         summary:
           asText(
-            it.summary ??
-              it.snippet ??
-              it.blurb ??
-              it.description ??
-              it.abstract,
+            o.summary ??
+              o.snippet ??
+              o.blurb ??
+              o.description ??
+              o.abstract,
           ) ?? undefined,
-        url: it.url ?? it.link,
+        body:
+          asText(
+            o.body ??
+              o.text ??
+              o.plainText ??
+              o.plain_text ??
+              o.content ??
+              o.emailBody ??
+              o.email_body ??
+              o.message ??
+              o.html,
+          ) ?? undefined,
+        url: asText(o.url ?? o.gmailUrl ?? o.gmail_url ?? o.link) ?? undefined,
         receivedAt:
-          asText(it.receivedAt ?? it.received_at ?? it.date ?? it.when) ??
+          asText(o.receivedAt ?? o.received_at ?? o.date ?? o.when) ??
           undefined,
       } satisfies NewsletterItem;
     })
     .filter(Boolean) as NewsletterItem[];
+}
+
+type NewsletterTakeaway = {
+  title: string;
+  bullets: string[];
+  sources: NewsletterItem[];
+};
+
+function stripHtmlToText(input: string): string {
+  return input
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\s*\/(p|div|li|tr|h1|h2|h3)\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function cleanNewsletterText(input: string): string {
+  return input
+    .replace(/\r\n/g, "\n")
+    .replace(/[\t ]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s{3,}/g, " ")
+    .trim();
+}
+
+function getNewsletterBodyText(n: NewsletterItem): string | null {
+  const raw = (n.body ?? n.summary ?? "").trim();
+  if (!raw) return null;
+
+  const looksLikeHtml = /<[^>]+>/.test(raw);
+  const text = cleanNewsletterText(looksLikeHtml ? stripHtmlToText(raw) : raw);
+  if (!text) return null;
+
+  // Drop obvious boilerplate footers.
+  const footerMarkers = [
+    "unsubscribe",
+    "manage preferences",
+    "update your preferences",
+    "view in browser",
+    "privacy policy",
+    "terms of service",
+    "sponsored",
+    "advertisement",
+  ];
+
+  const lower = text.toLowerCase();
+  let cut = text.length;
+  for (const m of footerMarkers) {
+    const idx = lower.indexOf(m);
+    if (idx !== -1) cut = Math.min(cut, idx);
+  }
+
+  const trimmed = cleanNewsletterText(text.slice(0, cut));
+  return trimmed || null;
+}
+
+function splitIntoSentences(input: string): string[] {
+  const cleaned = input.replace(/\s+/g, " ").trim();
+  if (!cleaned) return [];
+
+  return cleaned
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9“"(])/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function shortSender(sender: string | undefined): string {
+  if (!sender) return "Unknown sender";
+  const name = sender.split("<")[0]?.trim();
+  return name || sender;
+}
+
+type TopicRule = { id: string; label: string; patterns: RegExp[]; weight: number };
+
+const NEWSLETTER_TOPIC_RULES: TopicRule[] = [
+  {
+    id: "ai",
+    label: "AI / models",
+    weight: 4,
+    patterns: [
+      /\bopenai\b/i,
+      /\banthropic\b/i,
+      /\bgpt-?\d*\b/i,
+      /\bllm\b/i,
+      /\btransformer\b/i,
+      /\brag\b/i,
+      /\bagents?\b/i,
+      /\bmodel\b/i,
+      /\bfine-?tune\b/i,
+      /\bgemini\b/i,
+      /\bclaude\b/i,
+    ],
+  },
+  {
+    id: "startups",
+    label: "Startups / product",
+    weight: 3,
+    patterns: [
+      /\bstartup\b/i,
+      /\bfounder\b/i,
+      /\bseed\b/i,
+      /\bseries [a-e]\b/i,
+      /\bvc\b/i,
+      /\bventure\b/i,
+      /\bproduct\b/i,
+      /\bpmf\b/i,
+      /\bgtm\b/i,
+      /\bpricing\b/i,
+    ],
+  },
+  {
+    id: "markets",
+    label: "Markets / macro",
+    weight: 3,
+    patterns: [
+      /\bfed\b/i,
+      /\brates?\b/i,
+      /\binflation\b/i,
+      /\btreasur(y|ies)\b/i,
+      /\bearnings\b/i,
+      /\bstocks?\b/i,
+      /\bmarkets?\b/i,
+      /\bindex\b/i,
+      /\bgdp\b/i,
+    ],
+  },
+  {
+    id: "bigtech",
+    label: "Big tech",
+    weight: 2,
+    patterns: [
+      /\bapple\b/i,
+      /\bgoogle\b/i,
+      /\bmicrosoft\b/i,
+      /\bmeta\b/i,
+      /\bamazon\b/i,
+      /\baws\b/i,
+      /\bnvidia\b/i,
+      /\btesla\b/i,
+    ],
+  },
+  {
+    id: "security",
+    label: "Security / privacy",
+    weight: 2,
+    patterns: [
+      /\bsecurity\b/i,
+      /\bvulnerability\b/i,
+      /\bcve-\d+/i,
+      /\bbreach\b/i,
+      /\bprivacy\b/i,
+      /\bencrypt\w*\b/i,
+    ],
+  },
+];
+
+function pickTopic(text: string): { topic: TopicRule; score: number } {
+  let best: { topic: TopicRule; score: number } | null = null;
+
+  for (const topic of NEWSLETTER_TOPIC_RULES) {
+    let score = 0;
+    for (const re of topic.patterns) {
+      if (re.test(text)) score += topic.weight;
+    }
+
+    if (!best || score > best.score) {
+      best = { topic, score };
+    }
+  }
+
+  return best ?? { topic: { id: "other", label: "Other", patterns: [], weight: 0 }, score: 0 };
+}
+
+function scoreChunk(text: string): number {
+  const lower = text.toLowerCase();
+
+  let score = 0;
+  const { score: topicScore } = pickTopic(text);
+  score += topicScore;
+
+  // Bonus for specificity.
+  if (/[\d]{2,}/.test(text)) score += 1;
+  if (/[\$%]/.test(text)) score += 1;
+  if (/\b(q[1-4]|fy\d{2,4})\b/i.test(text)) score += 1;
+
+  // Penalize boilerplate.
+  if (lower.includes("unsubscribe")) score -= 4;
+  if (lower.includes("sponsored")) score -= 2;
+  if (lower.includes("advertisement")) score -= 2;
+
+  // Prefer medium chunks: dense but readable.
+  const len = text.length;
+  if (len >= 220 && len <= 900) score += 2;
+  if (len < 140) score -= 2;
+  if (len > 1400) score -= 2;
+
+  return score;
+}
+
+function splitNewsletterIntoChunks(text: string): string[] {
+  const blocks = text
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/g)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+
+  for (const block of blocks) {
+    // Break out bullet-ish lines into their own chunk.
+    const lines = block
+      .split(/\n/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const bulletLines = lines.filter((l) => /^[-*•]\s+/.test(l));
+    if (bulletLines.length >= 2) {
+      chunks.push(
+        bulletLines
+          .map((l) => l.replace(/^[-*•]\s+/, ""))
+          .join(" ")
+          .trim(),
+      );
+      continue;
+    }
+
+    chunks.push(block);
+  }
+
+  return chunks;
+}
+
+function dedupeStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const it of items) {
+    const key = it.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
+}
+
+function buildNewsletterTakeaways(
+  newsletters: NewsletterItem[],
+  maxTakeaways = 3,
+): NewsletterTakeaway[] {
+  type Candidate = {
+    newsletter: NewsletterItem;
+    chunk: string;
+    score: number;
+    topicId: string;
+    topicLabel: string;
+  };
+
+  const candidates: Candidate[] = [];
+
+  for (const n of newsletters) {
+    const body = getNewsletterBodyText(n);
+    if (!body) continue;
+
+    const chunks = splitNewsletterIntoChunks(body)
+      .map((c) => cleanNewsletterText(c))
+      .filter((c) => c.length >= 120);
+
+    for (const chunk of chunks) {
+      const topic = pickTopic(chunk).topic;
+      candidates.push({
+        newsletter: n,
+        chunk,
+        score: scoreChunk(chunk),
+        topicId: topic.id,
+        topicLabel: topic.label,
+      });
+    }
+  }
+
+  if (!candidates.length) return [];
+
+  // Group by topic to keep takeaways diverse across newsletters.
+  const byTopic = new Map<string, Candidate[]>();
+  for (const c of candidates) {
+    if (!byTopic.has(c.topicId)) byTopic.set(c.topicId, []);
+    byTopic.get(c.topicId)!.push(c);
+  }
+
+  for (const arr of byTopic.values()) {
+    arr.sort((a, b) => b.score - a.score);
+  }
+
+  const topicLeaders = Array.from(byTopic.values())
+    .map((arr) => arr[0]!)
+    .sort((a, b) => b.score - a.score);
+
+  const picked: Candidate[] = topicLeaders.slice(0, maxTakeaways);
+
+  // If we have fewer than 2 topics, fill from the next best chunks overall.
+  if (picked.length < 2) {
+    const remaining = [...candidates]
+      .sort((a, b) => b.score - a.score)
+      .filter((c) => !picked.includes(c));
+
+    while (picked.length < Math.min(2, maxTakeaways) && remaining.length) {
+      picked.push(remaining.shift()!);
+    }
+  }
+
+  return picked.map((p) => {
+    const topicCandidates = byTopic.get(p.topicId) ?? [p];
+
+    // Pull up to two distinct source newsletters for this topic.
+    const chosen: Candidate[] = [];
+    const seenSource = new Set<string>();
+
+    for (const c of topicCandidates) {
+      const key = (c.newsletter.url ?? c.newsletter.subject).toLowerCase();
+      if (seenSource.has(key)) continue;
+      seenSource.add(key);
+      chosen.push(c);
+      if (chosen.length >= 2) break;
+    }
+
+    const bullets = dedupeStrings(
+      chosen.flatMap((c) => splitIntoSentences(c.chunk).slice(0, 2)),
+    ).slice(0, 5);
+
+    const sources = chosen.map((c) => c.newsletter);
+
+    return {
+      title: p.topicLabel,
+      bullets: bullets.length ? bullets : [p.chunk],
+      sources,
+    };
+  });
 }
 
 function normalizeCalendar(brief: AnyObj | null): {
@@ -186,17 +559,19 @@ function normalizeCalendar(brief: AnyObj | null): {
   tomorrow: CalendarItem[];
 } {
   const mo = brief?.missionOutlook ?? brief?.mission_outlook ?? brief?.calendar;
+  const moObj = asObj(mo);
 
-  const today =
-    (Array.isArray(mo?.today)
-      ? mo.today
-      : Array.isArray(mo)
-        ? mo
-        : []) as any[];
+  const today: unknown[] = Array.isArray(moObj?.today)
+    ? (moObj.today as unknown[])
+    : Array.isArray(mo)
+      ? mo
+      : [];
 
-  const tomorrow = (Array.isArray(mo?.tomorrow) ? mo.tomorrow : []) as any[];
+  const tomorrow: unknown[] = Array.isArray(moObj?.tomorrow)
+    ? (moObj.tomorrow as unknown[])
+    : [];
 
-  const norm = (arr: any[]) =>
+  const norm = (arr: unknown[]) =>
     arr
       .map((it) => {
         if (typeof it === "string") {
@@ -206,11 +581,14 @@ function normalizeCalendar(brief: AnyObj | null): {
             details: rest.length ? rest.join("|").trim() : it,
           } satisfies CalendarItem;
         }
-        if (!it || typeof it !== "object") return null;
+
+        const o = asObj(it);
+        if (!o) return null;
+
         return {
-          when: it.when ?? it.time ?? it.start,
-          tag: it.tag,
-          details: it.details ?? it.summary ?? it.title,
+          when: asText(o.when ?? o.time ?? o.start) ?? undefined,
+          tag: asText(o.tag) ?? undefined,
+          details: asText(o.details ?? o.summary ?? o.title) ?? undefined,
         } satisfies CalendarItem;
       })
       .filter(Boolean) as CalendarItem[];
@@ -317,17 +695,16 @@ function normalizeStorage(brief: AnyObj | null): StorageVitals | null {
   const documentsPath = docs ? asText(docs.path) ?? undefined : undefined;
   const documentsBytes = docs ? asNumber(docs.bytes ?? docs.sizeBytes ?? docs.size_bytes) ?? undefined : undefined;
 
-  const topRaw =
-    (Array.isArray(s.topFolders)
-      ? s.topFolders
-      : Array.isArray(s.top_folders)
-        ? s.top_folders
-        : []) as any[];
+  const topRaw: unknown[] = Array.isArray(s.topFolders)
+    ? (s.topFolders as unknown[])
+    : Array.isArray(s.top_folders)
+      ? (s.top_folders as unknown[])
+      : [];
 
   const topFolders: StorageFolder[] = topRaw
     .map((it) => {
-      if (!it || typeof it !== "object") return null;
-      const o = it as AnyObj;
+      const o = asObj(it);
+      if (!o) return null;
       const name = asText(o.name ?? o.folder ?? o.label) ?? null;
       const bytes = asNumber(o.bytes ?? o.sizeBytes ?? o.size_bytes ?? o.size) ?? null;
       if (!name || typeof bytes !== "number") return null;
@@ -376,7 +753,31 @@ function DonutChart({
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
 
-  let offset = 0;
+  const circles = segments.reduce(
+    (acc, s) => {
+      const frac = total > 0 ? s.value / total : 0;
+      const dash = clamp(frac, 0, 1) * c;
+      const dashArray = `${dash} ${c - dash}`;
+
+      const node = (
+        <circle
+          key={s.label}
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="transparent"
+          stroke={s.color}
+          strokeWidth={thickness}
+          strokeDasharray={dashArray}
+          strokeDashoffset={-acc.offset}
+          strokeLinecap="butt"
+        />
+      );
+
+      return { offset: acc.offset + dash, nodes: [...acc.nodes, node] };
+    },
+    { offset: 0, nodes: [] as React.ReactNode[] },
+  ).nodes;
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Storage usage">
@@ -389,27 +790,7 @@ function DonutChart({
           stroke="rgb(241 245 249)"
           strokeWidth={thickness}
         />
-        {segments.map((s) => {
-          const frac = total > 0 ? s.value / total : 0;
-          const dash = clamp(frac, 0, 1) * c;
-          const dashArray = `${dash} ${c - dash}`;
-          const dashOffset = -offset;
-          offset += dash;
-          return (
-            <circle
-              key={s.label}
-              cx={size / 2}
-              cy={size / 2}
-              r={r}
-              fill="transparent"
-              stroke={s.color}
-              strokeWidth={thickness}
-              strokeDasharray={dashArray}
-              strokeDashoffset={dashOffset}
-              strokeLinecap="butt"
-            />
-          );
-        })}
+        {circles}
       </g>
     </svg>
   );
@@ -608,23 +989,28 @@ export default async function Page() {
     asText(brief?.summary) ??
     null;
 
-  const weather = brief?.weather ?? brief?.local;
-  const weatherNarrative = asText(weather?.narrative) ?? asText(weather?.summary);
-  const hi = weather?.high ?? weather?.hi;
-  const lo = weather?.low ?? weather?.lo;
+  const weatherRaw = brief?.weather ?? brief?.local;
+  const weather = asObj(weatherRaw);
+  const weatherNarrative = asText(weather?.narrative ?? weather?.summary);
+
+  const hiRaw = weather?.high ?? weather?.hi;
+  const loRaw = weather?.low ?? weather?.lo;
+  const hi = asNumber(hiRaw) ?? asText(hiRaw);
+  const lo = asNumber(loRaw) ?? asText(loRaw);
 
   const news = normalizeNews(brief);
   const newsletters = normalizeNewsletters(brief);
+  const newslettersWithBody = newsletters.filter((n) => (n.body ?? "").trim()).length;
+  const newsletterTakeaways = buildNewsletterTakeaways(newsletters, 3);
   const cal = normalizeCalendar(brief);
 
-  const projects =
-    (Array.isArray(brief?.projectPulse)
-      ? brief.projectPulse
-      : Array.isArray(brief?.projects)
-        ? brief.projects
-        : []) as any[];
+  const projects: unknown[] = Array.isArray(brief?.projectPulse)
+    ? (brief?.projectPulse as unknown[])
+    : Array.isArray(brief?.projects)
+      ? (brief?.projects as unknown[])
+      : [];
 
-  const metrics = brief?.intelligenceMetrics ?? brief?.metrics;
+  const metrics = asObj(brief?.intelligenceMetrics ?? brief?.metrics);
   const balances = normalizeBalances(brief);
   const storage = normalizeStorage(brief);
 
@@ -663,13 +1049,15 @@ export default async function Page() {
           </div>
         </header>
 
-        <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:auto-rows-min lg:gap-5">
           <div className="lg:col-span-12">
             <Section title="Top Briefing" kicker="2-sentence synthesis">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-6 text-center">
                 {executiveSummary ? (
                   <p className="mx-auto max-w-3xl text-lg leading-relaxed italic">
-                    "{executiveSummary}"
+                    <span aria-hidden="true">&ldquo;</span>
+                    {executiveSummary}
+                    <span aria-hidden="true">&rdquo;</span>
                   </p>
                 ) : (
                   <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
@@ -680,7 +1068,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:col-span-8">
+          <div className="lg:order-10 lg:col-span-4 space-y-6">
             <Section title="Field Intelligence" kicker="AI / Tech news">
               {news.length ? (
                 <ul className="space-y-4">
@@ -722,9 +1110,143 @@ export default async function Page() {
                 </div>
               )}
             </Section>
+
+            <Section
+              title="Newsletter Digest"
+              kicker="2–3 takeaways (Gmail label: newsletters)"
+            >
+              {newsletterTakeaways.length ? (
+                <ol className="space-y-4">
+                  {newsletterTakeaways.map((t, idx) => (
+                    <li
+                      key={`${t.title}-${idx}`}
+                      className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div className="font-display text-lg">{t.title}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+                          Takeaway {idx + 1}
+                        </div>
+                      </div>
+
+                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--muted-ink)]">
+                        {t.bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+
+                      <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                          Source
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                          {t.sources.map((n, i) => {
+                            const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                            const dtText =
+                              dt && !Number.isNaN(dt.valueOf())
+                                ? dt.toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })
+                                : null;
+
+                            const label = `${shortSender(n.sender)} — ${n.subject}${dtText ? ` · ${dtText}` : ""}`;
+
+                            return n.url ? (
+                              <a
+                                key={`${n.url}-${i}`}
+                                href={n.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                                title={n.subject}
+                              >
+                                {label}
+                              </a>
+                            ) : (
+                              <span key={`${n.subject}-${i}`}>{label}</span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : newsletters.length ? (
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                  {newslettersWithBody ? (
+                    <span>
+                      Newsletter bodies are present, but no takeaways could be extracted yet.
+                      Try sending a longer <span className="font-mono">newsletters[].body</span> (plain text or HTML).
+                    </span>
+                  ) : (
+                    <span>
+                      Newsletter messages are present, but no full bodies were found in the payload.
+                      Add <span className="font-mono">newsletters[].body</span> (plain text or HTML) to generate takeaways.
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                  No newsletters yet.
+                </div>
+              )}
+
+              {newsletters.length ? (
+                <details className="mt-4 rounded-sm border border-[color:var(--rule)] bg-white/40 p-4">
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    All newsletters ({newsletters.length})
+                  </summary>
+                  <ul className="mt-3 space-y-3">
+                    {newsletters.slice(0, 12).map((n, idx) => {
+                      const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                      const dtText =
+                        dt && !Number.isNaN(dt.valueOf())
+                          ? dt.toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
+                          : null;
+
+                      return (
+                        <li key={idx} className="border-b border-[color:var(--rule)] pb-3 last:border-b-0 last:pb-0">
+                          <div className="text-[13px] leading-6">
+                            {n.url ? (
+                              <a
+                                href={n.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                              >
+                                {n.subject}
+                              </a>
+                            ) : (
+                              <span>{n.subject}</span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
+                            {shortSender(n.sender)}
+                            {dtText ? ` · ${dtText}` : ""}
+                          </div>
+                          {n.summary ? (
+                            <p className="mt-2 text-[12px] leading-5 text-[color:var(--muted-ink)]">
+                              {n.summary}
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              ) : null}
+            </Section>
           </div>
 
-          <div className="lg:col-span-4">
+          <div className="lg:order-40 lg:col-span-4">
             <Section title="Weather & Local" kicker="Rita Ranch intel">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
                 <div className="flex items-baseline justify-between">
@@ -732,7 +1254,7 @@ export default async function Page() {
                     Today
                   </div>
                   <div className="text-sm">
-                    {typeof hi !== "undefined" || typeof lo !== "undefined" ? (
+                    {hi !== null || lo !== null ? (
                       <span>
                         <span className="font-display">{hi ?? "—"}</span>
                         <span className="text-[color:var(--muted-ink)]"> / </span>
@@ -749,243 +1271,331 @@ export default async function Page() {
                 </p>
               </div>
             </Section>
+          </div>
 
-            <div className="mt-6">
-              <Section
-                title="Balances"
-                kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
-              >
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
-                  {balances ? (
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                      <div>
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
-                          Savings
-                        </div>
-                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
-                          {formatUsd(balances.savings)}
-                        </div>
+          <div className="lg:order-30 lg:col-span-4">
+            <Section
+              title="Balances"
+              kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
+            >
+              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+                {balances ? (
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                        Savings
                       </div>
-
-                      <div>
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
-                          Checking
-                        </div>
-                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
-                          {formatUsd(balances.checking)}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
-                          HSA
-                        </div>
-                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
-                          {formatUsd(balances.hsa)}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
-                          Retirement total
-                        </div>
-                        <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
-                          {formatUsd(balances.retirementTotal)}
-                        </div>
+                      <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        {formatUsd(balances.savings)}
                       </div>
                     </div>
+
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                        Checking
+                      </div>
+                      <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        {formatUsd(balances.checking)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                        HSA
+                      </div>
+                      <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        {formatUsd(balances.hsa)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--muted-ink)]">
+                        Retirement total
+                      </div>
+                      <div className="font-display mt-1 text-2xl border-b border-[color:var(--rule)] pb-1">
+                        {formatUsd(balances.retirementTotal)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-[color:var(--muted-ink)]">
+                    Add <span className="font-mono">balances</span> to the briefing JSON (
+                    <span className="font-mono">savings</span>,
+                    <span className="font-mono">checking</span>,
+                    <span className="font-mono">hsa</span>,
+                    <span className="font-mono">retirementTotal</span>).
+                  </div>
+                )}
+              </div>
+            </Section>
+          </div>
+
+          <div className="lg:order-60 lg:col-span-4">
+            <Section
+              title="Storage"
+              kicker={
+                typeof storage?.root?.percentUsed === "number"
+                  ? `${Math.round(storage.root.percentUsed)}% used`
+                  : "disk snapshot"
+              }
+            >
+              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+                <StorageSection storage={storage} />
+              </div>
+            </Section>
+          </div>
+
+          <div className="lg:order-50 lg:col-span-4">
+            <Section title="Mission Outlook" kicker="48-hour view">
+              <div className="space-y-4">
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    Today
+                  </div>
+                  {cal.today.length ? (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {cal.today.slice(0, 6).map((e, idx) => (
+                        <li key={idx} className="leading-6">
+                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
+                          <span>{e.details ?? "(event)"}</span>
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <div className="text-sm text-[color:var(--muted-ink)]">
-                      Add <span className="font-mono">balances</span> to the briefing JSON (
-                      <span className="font-mono">savings</span>,
-                      <span className="font-mono">checking</span>,
-                      <span className="font-mono">hsa</span>,
-                      <span className="font-mono">retirementTotal</span>).
+                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
+                      No events.
                     </div>
                   )}
                 </div>
-              </Section>
-            </div>
 
-            <div className="mt-6">
-              <Section
-                title="Storage"
-                kicker={
-                  typeof storage?.root?.percentUsed === "number"
-                    ? `${Math.round(storage.root.percentUsed)}% used`
-                    : "disk snapshot"
-                }
-              >
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
-                  <StorageSection storage={storage} />
-                </div>
-              </Section>
-            </div>
-
-            <div className="mt-6">
-              <Section title="Mission Outlook" kicker="48-hour view">
-                <div className="space-y-4">
-                  <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                      Today
-                    </div>
-                    {cal.today.length ? (
-                      <ul className="mt-2 space-y-2 text-sm">
-                        {cal.today.slice(0, 6).map((e, idx) => (
-                          <li key={idx} className="leading-6">
-                            <span className="font-medium">
-                              {e.tag ? `${e.tag} | ` : ""}
-                            </span>
-                            <span>{e.details ?? "(event)"}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
-                        No events.
-                      </div>
-                    )}
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    Tomorrow
                   </div>
-
-                  <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                      Tomorrow
+                  {cal.tomorrow.length ? (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {cal.tomorrow.slice(0, 6).map((e, idx) => (
+                        <li key={idx} className="leading-6">
+                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
+                          <span>{e.details ?? "(event)"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
+                      No events.
                     </div>
-                    {cal.tomorrow.length ? (
-                      <ul className="mt-2 space-y-2 text-sm">
-                        {cal.tomorrow.slice(0, 6).map((e, idx) => (
-                          <li key={idx} className="leading-6">
-                            <span className="font-medium">
-                              {e.tag ? `${e.tag} | ` : ""}
-                            </span>
-                            <span>{e.details ?? "(event)"}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
-                        No events.
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </Section>
-            </div>
+              </div>
+            </Section>
           </div>
 
-          <div className="lg:col-span-12">
+          <div className="lg:order-20 lg:col-span-4 hidden">
             <Section
               title="Newsletter Digest"
-              kicker="last 24h (Gmail label: newsletters)"
+              kicker="2–3 takeaways (Gmail label: newsletters)"
             >
-              {newsletters.length ? (
-                <ul className="space-y-4">
-                  {newsletters.slice(0, 3).map((n, idx) => {
-                    const dt = n.receivedAt ? new Date(n.receivedAt) : null;
-                    const dtText =
-                      dt && !Number.isNaN(dt.valueOf())
-                        ? dt.toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
-                        : null;
+              {newsletterTakeaways.length ? (
+                <ol className="space-y-4">
+                  {newsletterTakeaways.map((t, idx) => (
+                    <li
+                      key={`${t.title}-${idx}`}
+                      className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div className="font-display text-lg">{t.title}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+                          Takeaway {idx + 1}
+                        </div>
+                      </div>
 
-                    return (
-                      <li
-                        key={idx}
-                        className="border-b border-[color:var(--rule)] pb-4"
-                      >
-                        <div className="text-[15px] leading-6">
-                          {n.url ? (
-                            <a
-                              href={n.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
-                            >
-                              {n.subject}
-                            </a>
-                          ) : (
-                            <span>{n.subject}</span>
-                          )}
+                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--muted-ink)]">
+                        {t.bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+
+                      <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                          Source
                         </div>
-                        <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
-                          {n.sender ? n.sender : "Unknown sender"}
-                          {dtText ? ` · ${dtText}` : ""}
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                          {t.sources.map((n, i) => {
+                            const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                            const dtText =
+                              dt && !Number.isNaN(dt.valueOf())
+                                ? dt.toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })
+                                : null;
+
+                            const label = `${shortSender(n.sender)} — ${n.subject}${dtText ? ` · ${dtText}` : ""}`;
+
+                            return n.url ? (
+                              <a
+                                key={`${n.url}-${i}`}
+                                href={n.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                                title={n.subject}
+                              >
+                                {label}
+                              </a>
+                            ) : (
+                              <span key={`${n.subject}-${i}`}>{label}</span>
+                            );
+                          })}
                         </div>
-                        {n.summary ? (
-                          <p className="mt-2 text-[13px] leading-6 text-[color:var(--muted-ink)]">
-                            {n.summary}
-                          </p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : newsletters.length ? (
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                  {newslettersWithBody ? (
+                    <span>
+                      Newsletter bodies are present, but no takeaways could be extracted yet.
+                      Try sending a longer <span className="font-mono">newsletters[].body</span> (plain text or HTML).
+                    </span>
+                  ) : (
+                    <span>
+                      Newsletter messages are present, but no full bodies were found in the payload.
+                      Add <span className="font-mono">newsletters[].body</span> (plain text or HTML) to generate takeaways.
+                    </span>
+                  )}
+                </div>
               ) : (
                 <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
                   No newsletters yet.
                 </div>
               )}
+
+              {newsletters.length ? (
+                <details className="mt-4 rounded-sm border border-[color:var(--rule)] bg-white/40 p-4">
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    All newsletters ({newsletters.length})
+                  </summary>
+                  <ul className="mt-3 space-y-3">
+                    {newsletters.slice(0, 12).map((n, idx) => {
+                      const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                      const dtText =
+                        dt && !Number.isNaN(dt.valueOf())
+                          ? dt.toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
+                          : null;
+
+                      return (
+                        <li key={idx} className="border-b border-[color:var(--rule)] pb-3 last:border-b-0 last:pb-0">
+                          <div className="text-[13px] leading-6">
+                            {n.url ? (
+                              <a
+                                href={n.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                              >
+                                {n.subject}
+                              </a>
+                            ) : (
+                              <span>{n.subject}</span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
+                            {shortSender(n.sender)}
+                            {dtText ? ` · ${dtText}` : ""}
+                          </div>
+                          {n.summary ? (
+                            <p className="mt-2 text-[12px] leading-5 text-[color:var(--muted-ink)]">
+                              {n.summary}
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
+              ) : null}
             </Section>
           </div>
 
-          <div className="lg:col-span-7">
+          <div className="lg:order-70 lg:col-span-8">
             <Section title="Project Pulse" kicker="active work">
               {projects.length ? (
                 <div className="space-y-4">
-                  {projects.slice(0, 6).map((p, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
-                    >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-display text-lg">
-                          {p.name ?? p.project ?? `Project ${idx + 1}`}
+                  {projects.slice(0, 6).map((p, idx) => {
+                    const o = asObj(p) ?? ({} as AnyObj);
+                    const name =
+                      asText(o.name ?? o.project) ?? `Project ${idx + 1}`;
+                    const vercelUrl = asText(o.vercelUrl ?? o.vercel_url) ?? undefined;
+
+                    const recentWins: unknown[] = Array.isArray(o.recentWins)
+                      ? (o.recentWins as unknown[])
+                      : [];
+
+                    const stillToDo: unknown[] = Array.isArray(o.stillToDo)
+                      ? (o.stillToDo as unknown[])
+                      : [];
+
+                    return (
+                      <div
+                        key={idx}
+                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="font-display text-lg">{name}</div>
+                          {vercelUrl ? (
+                            <a
+                              href={vercelUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-ink)] underline decoration-black/20 underline-offset-4"
+                            >
+                              Live
+                            </a>
+                          ) : null}
                         </div>
-                        {p.vercelUrl ? (
-                          <a
-                            href={p.vercelUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-ink)] underline decoration-black/20 underline-offset-4"
-                          >
-                            Live
-                          </a>
+
+                        {recentWins.length ? (
+                          <div className="mt-3">
+                            <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                              Recent wins
+                            </div>
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                              {recentWins.slice(0, 5).map((w, i) => (
+                                <li key={i} className="leading-6">
+                                  {asText(w) ?? JSON.stringify(w)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+
+                        {stillToDo.length ? (
+                          <div className="mt-3">
+                            <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                              Still to do
+                            </div>
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted-ink)]">
+                              {stillToDo.slice(0, 5).map((t, i) => (
+                                <li key={i} className="leading-6">
+                                  {asText(t) ?? JSON.stringify(t)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ) : null}
                       </div>
-                      {Array.isArray(p.recentWins) && p.recentWins.length ? (
-                        <div className="mt-3">
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                            Recent wins
-                          </div>
-                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            {p.recentWins.slice(0, 5).map((w: any, i: number) => (
-                              <li key={i} className="leading-6">
-                                {typeof w === "string" ? w : JSON.stringify(w)}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {Array.isArray(p.stillToDo) && p.stillToDo.length ? (
-                        <div className="mt-3">
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                            Still to do
-                          </div>
-                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted-ink)]">
-                            {p.stillToDo.slice(0, 5).map((t: any, i: number) => (
-                              <li key={i} className="leading-6">
-                                {typeof t === "string" ? t : JSON.stringify(t)}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
@@ -995,7 +1605,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:col-span-5">
+          <div className="lg:order-80 lg:col-span-4">
             <Section title="Intelligence Metrics" kicker="burn rate & pulse">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
                 <MetricsSection metrics={metrics} />
