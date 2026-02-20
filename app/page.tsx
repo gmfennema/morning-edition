@@ -1068,7 +1068,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-8 space-y-6">
             <Section title="Field Intelligence" kicker="AI / Tech news">
               {news.length ? (
                 <ul className="space-y-4">
