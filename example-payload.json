@@ -1,0 +1,132 @@
+{
+  "date": "Friday, February 20, 2026",
+  "executive_summary": "Systems are green across the board, with storage capacity holding steady at 73%. Primary mission today is refining the dashboard layout and ensuring the data pipelines flow smoothly.",
+  "news": [
+    {
+      "headline": "Gemini 3.1 Pro Leaks Show Massive Logic Gains",
+      "tag": "AI",
+      "source": "The Verge",
+      "url": "https://example.com/gemini-leak",
+      "summary": "Benchmarks leaked early this morning suggest Google's new model outperforms GPT-5 on reasoning tasks by a wide margin."
+    },
+    {
+      "headline": "Vail School District Announces New Tech Initiative",
+      "tag": "Vail",
+      "source": "KVOA",
+      "url": "https://example.com/vail-tech",
+      "summary": "Local schools are rolling out a new AI literacy program starting next semester."
+    },
+    {
+      "headline": "Tucson Tech Corridor expansion approved",
+      "tag": "Tucson",
+      "source": "AZ Daily Star",
+      "url": "https://example.com/tucson-tech",
+      "summary": "City council votes unanimously to rezone the southeast corridor for new tech offices."
+    }
+  ],
+  "newsletters": [
+    {
+      "sender": "Ben Thompson <daily@stratechery.com>",
+      "subject": "The AI Value Chain",
+      "summary": "Ben argues that the value is shifting from model providers to application layers. Also covers the new Nvidia chips.",
+      "url": "https://mail.google.com/mail/u/0/#all/1234567890abcdef",
+      "body": "The shift in value capture is becoming undeniable. While model weights compress, the stickiness of workflows increases. Nvidia announced the B200 today..."
+    },
+    {
+      "sender": "TLDR AI <dan@tldr.tech>",
+      "subject": "OpenAI's $7T Ask",
+      "summary": "Sam Altman is reportedly seeking 7 trillion dollars for chip manufacturing infrastructure. Plus: new open source models from Meta.",
+      "url": "https://mail.google.com/mail/u/0/#all/0987654321fedcba",
+      "body": "Sam Altman's ambition knows no bounds. The reported $7T fund would reshape the global semiconductor supply chain. Meanwhile, Llama 4 70B just dropped..."
+    }
+  ],
+  "weather": {
+    "hi": "73°F",
+    "lo": "50°F",
+    "narrative": "Clear skies and mild temperatures. Perfect for a lunch break walk."
+  },
+  "balances": {
+    "asOf": "2026-02-20",
+    "savings": 24100.50,
+    "checking": 18250.75,
+    "hsa": 6150.00,
+    "retirementTotal": 118500.25
+  },
+  "calendar": {
+    "today": [
+      {
+        "tag": "Work",
+        "details": "Sync with Engineering Team",
+        "when": "2026-02-20T09:00:00-07:00"
+      },
+      {
+        "tag": "Personal",
+        "details": "Lunch with Sarah",
+        "when": "2026-02-20T12:00:00-07:00"
+      }
+    ],
+    "tomorrow": [
+      {
+        "tag": "Project",
+        "details": "Morning Edition Deploy",
+        "when": "2026-02-21T10:00:00-07:00"
+      }
+    ]
+  },
+  "projects": [
+    {
+      "name": "morning-edition",
+      "vercelUrl": "https://morning-edition.vercel.app",
+      "last_commit": "a1b2c3d - feat: updated grid layout",
+      "recentWins": [
+        "Fixed column layout to 2/3 + 1/3 split",
+        "Integrated storage vitals widget"
+      ],
+      "stillToDo": [
+        "Add historical trendlines to balances",
+        "Refine mobile responsive view"
+      ]
+    },
+    {
+      "name": "scout-dashboard",
+      "recentWins": [
+        "Optimized event fetching query",
+        "Added heartbeat monitor"
+      ],
+      "stillToDo": [
+        "Implement search filtering"
+      ]
+    }
+  ],
+  "storage": {
+    "generatedAt": "2026-02-20T14:00:00.000Z",
+    "root": {
+      "mount": "/System/Volumes/Data",
+      "filesystem": "apfs",
+      "totalBytes": 499963174912,
+      "usedBytes": 364973117685,
+      "freeBytes": 134990057227,
+      "percentUsed": 73
+    },
+    "documents": {
+      "path": "/Users/gabefennema/Documents",
+      "bytes": 12500000000
+    }
+  },
+  "intelligenceMetrics": {
+    "Weekly Codex": "33%",
+    "Codex (5h)": "4%",
+    "Gemini (Pro)": "12%",
+    "Gemini (Flash)": "0%",
+    "Brave Search": "1,714 left",
+    "telegram_volume": {
+      "Mon": 145,
+      "Tue": 210,
+      "Wed": 89,
+      "Thu": 302,
+      "Fri": 112,
+      "Sat": 45,
+      "Sun": 23
+    }
+  }
+}
