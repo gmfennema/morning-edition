@@ -1049,7 +1049,7 @@ export default async function Page() {
           </div>
         </header>
 
-        <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:auto-rows-min lg:gap-5">
+        <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 items-start">
           <div className="lg:col-span-12">
             <Section title="Top Briefing" kicker="2-sentence synthesis">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-6 text-center">
@@ -1068,7 +1068,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:order-10 lg:col-span-4 space-y-6">
+          <div className="lg:col-span-4 space-y-6">
             <Section title="Field Intelligence" kicker="AI / Tech news">
               {news.length ? (
                 <ul className="space-y-4">
@@ -1246,7 +1246,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:order-40 lg:col-span-4">
+          <div className="lg:col-span-4 space-y-6">
             <Section title="Weather & Local" kicker="Rita Ranch intel">
               <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
                 <div className="flex items-baseline justify-between">
@@ -1271,9 +1271,51 @@ export default async function Page() {
                 </p>
               </div>
             </Section>
-          </div>
 
-          <div className="lg:order-30 lg:col-span-4">
+            <Section title="Mission Outlook" kicker="48-hour view">
+              <div className="space-y-4">
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    Today
+                  </div>
+                  {cal.today.length ? (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {cal.today.slice(0, 6).map((e, idx) => (
+                        <li key={idx} className="leading-6">
+                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
+                          <span>{e.details ?? "(event)"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
+                      No events.
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
+                    Tomorrow
+                  </div>
+                  {cal.tomorrow.length ? (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {cal.tomorrow.slice(0, 6).map((e, idx) => (
+                        <li key={idx} className="leading-6">
+                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
+                          <span>{e.details ?? "(event)"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
+                      No events.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Section>
+
             <Section
               title="Balances"
               kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
@@ -1330,7 +1372,7 @@ export default async function Page() {
             </Section>
           </div>
 
-          <div className="lg:order-60 lg:col-span-4">
+          <div className="lg:col-span-4 space-y-6">
             <Section
               title="Storage"
               kicker={
@@ -1343,194 +1385,18 @@ export default async function Page() {
                 <StorageSection storage={storage} />
               </div>
             </Section>
-          </div>
 
-          <div className="lg:order-50 lg:col-span-4">
-            <Section title="Mission Outlook" kicker="48-hour view">
-              <div className="space-y-4">
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                    Today
-                  </div>
-                  {cal.today.length ? (
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {cal.today.slice(0, 6).map((e, idx) => (
-                        <li key={idx} className="leading-6">
-                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
-                          <span>{e.details ?? "(event)"}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
-                      No events.
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                    Tomorrow
-                  </div>
-                  {cal.tomorrow.length ? (
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {cal.tomorrow.slice(0, 6).map((e, idx) => (
-                        <li key={idx} className="leading-6">
-                          <span className="font-medium">{e.tag ? `${e.tag} | ` : ""}</span>
-                          <span>{e.details ?? "(event)"}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="mt-2 text-sm text-[color:var(--muted-ink)]">
-                      No events.
-                    </div>
-                  )}
-                </div>
+            <Section title="Intelligence Metrics" kicker="burn rate & pulse">
+              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+                <MetricsSection metrics={metrics} />
               </div>
             </Section>
           </div>
 
-          <div className="lg:order-20 lg:col-span-4 hidden">
-            <Section
-              title="Newsletter Digest"
-              kicker="2–3 takeaways (Gmail label: newsletters)"
-            >
-              {newsletterTakeaways.length ? (
-                <ol className="space-y-4">
-                  {newsletterTakeaways.map((t, idx) => (
-                    <li
-                      key={`${t.title}-${idx}`}
-                      className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
-                    >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-display text-lg">{t.title}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-                          Takeaway {idx + 1}
-                        </div>
-                      </div>
-
-                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--muted-ink)]">
-                        {t.bullets.map((b, i) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em]">
-                          Source
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                          {t.sources.map((n, i) => {
-                            const dt = n.receivedAt ? new Date(n.receivedAt) : null;
-                            const dtText =
-                              dt && !Number.isNaN(dt.valueOf())
-                                ? dt.toLocaleString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })
-                                : null;
-
-                            const label = `${shortSender(n.sender)} — ${n.subject}${dtText ? ` · ${dtText}` : ""}`;
-
-                            return n.url ? (
-                              <a
-                                key={`${n.url}-${i}`}
-                                href={n.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
-                                title={n.subject}
-                              >
-                                {label}
-                              </a>
-                            ) : (
-                              <span key={`${n.subject}-${i}`}>{label}</span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              ) : newsletters.length ? (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
-                  {newslettersWithBody ? (
-                    <span>
-                      Newsletter bodies are present, but no takeaways could be extracted yet.
-                      Try sending a longer <span className="font-mono">newsletters[].body</span> (plain text or HTML).
-                    </span>
-                  ) : (
-                    <span>
-                      Newsletter messages are present, but no full bodies were found in the payload.
-                      Add <span className="font-mono">newsletters[].body</span> (plain text or HTML) to generate takeaways.
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
-                  No newsletters yet.
-                </div>
-              )}
-
-              {newsletters.length ? (
-                <details className="mt-4 rounded-sm border border-[color:var(--rule)] bg-white/40 p-4">
-                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                    All newsletters ({newsletters.length})
-                  </summary>
-                  <ul className="mt-3 space-y-3">
-                    {newsletters.slice(0, 12).map((n, idx) => {
-                      const dt = n.receivedAt ? new Date(n.receivedAt) : null;
-                      const dtText =
-                        dt && !Number.isNaN(dt.valueOf())
-                          ? dt.toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })
-                          : null;
-
-                      return (
-                        <li key={idx} className="border-b border-[color:var(--rule)] pb-3 last:border-b-0 last:pb-0">
-                          <div className="text-[13px] leading-6">
-                            {n.url ? (
-                              <a
-                                href={n.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
-                              >
-                                {n.subject}
-                              </a>
-                            ) : (
-                              <span>{n.subject}</span>
-                            )}
-                          </div>
-                          <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
-                            {shortSender(n.sender)}
-                            {dtText ? ` · ${dtText}` : ""}
-                          </div>
-                          {n.summary ? (
-                            <p className="mt-2 text-[12px] leading-5 text-[color:var(--muted-ink)]">
-                              {n.summary}
-                            </p>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </details>
-              ) : null}
-            </Section>
-          </div>
-
-          <div className="lg:order-70 lg:col-span-8">
+          <div className="lg:col-span-12">
             <Section title="Project Pulse" kicker="active work">
               {projects.length ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.slice(0, 6).map((p, idx) => {
                     const o = asObj(p) ?? ({} as AnyObj);
                     const name =
@@ -1548,7 +1414,7 @@ export default async function Page() {
                     return (
                       <div
                         key={idx}
-                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 h-full"
                       >
                         <div className="flex items-baseline justify-between gap-3">
                           <div className="font-display text-lg">{name}</div>
@@ -1602,14 +1468,6 @@ export default async function Page() {
                   No projects yet.
                 </div>
               )}
-            </Section>
-          </div>
-
-          <div className="lg:order-80 lg:col-span-4">
-            <Section title="Intelligence Metrics" kicker="burn rate & pulse">
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
-                <MetricsSection metrics={metrics} />
-              </div>
             </Section>
           </div>
         </main>
