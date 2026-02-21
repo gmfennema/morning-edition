@@ -1000,8 +1000,6 @@ export default async function Page() {
 
   const news = normalizeNews(brief);
   const newsletters = normalizeNewsletters(brief);
-  const newslettersWithBody = newsletters.filter((n) => (n.body ?? "").trim()).length;
-  const newsletterTakeaways = buildNewsletterTakeaways(newsletters, 3);
   const cal = normalizeCalendar(brief);
 
   const projects: unknown[] = Array.isArray(brief?.projectPulse)
@@ -1113,108 +1111,29 @@ export default async function Page() {
 
             <Section
               title="Newsletter Digest"
-              kicker="2–3 takeaways (Gmail label: newsletters)"
+              kicker="Latest updates (Gmail label: newsletters)"
             >
-              {newsletterTakeaways.length ? (
-                <ol className="space-y-4">
-                  {newsletterTakeaways.map((t, idx) => (
-                    <li
-                      key={`${t.title}-${idx}`}
-                      className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
-                    >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-display text-lg">{t.title}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-                          Takeaway {idx + 1}
-                        </div>
-                      </div>
-
-                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[color:var(--muted-ink)]">
-                        {t.bullets.map((b, i) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em]">
-                          Source
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                          {t.sources.map((n, i) => {
-                            const dt = n.receivedAt ? new Date(n.receivedAt) : null;
-                            const dtText =
-                              dt && !Number.isNaN(dt.valueOf())
-                                ? dt.toLocaleString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })
-                                : null;
-
-                            const label = `${shortSender(n.sender)} — ${n.subject}${dtText ? ` · ${dtText}` : ""}`;
-
-                            return n.url ? (
-                              <a
-                                key={`${n.url}-${i}`}
-                                href={n.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
-                                title={n.subject}
-                              >
-                                {label}
-                              </a>
-                            ) : (
-                              <span key={`${n.subject}-${i}`}>{label}</span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              ) : newsletters.length ? (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
-                  {newslettersWithBody ? (
-                    <span>
-                      Newsletter bodies are present, but no takeaways could be extracted yet.
-                      Try sending a longer <span className="font-mono">newsletters[].body</span> (plain text or HTML).
-                    </span>
-                  ) : (
-                    <span>
-                      Newsletter messages are present, but no full bodies were found in the payload.
-                      Add <span className="font-mono">newsletters[].body</span> (plain text or HTML) to generate takeaways.
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
-                  No newsletters yet.
-                </div>
-              )}
-
               {newsletters.length ? (
-                <details className="mt-4 rounded-sm border border-[color:var(--rule)] bg-white/40 p-4">
-                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                    All newsletters ({newsletters.length})
-                  </summary>
-                  <ul className="mt-3 space-y-3">
-                    {newsletters.slice(0, 12).map((n, idx) => {
-                      const dt = n.receivedAt ? new Date(n.receivedAt) : null;
-                      const dtText =
-                        dt && !Number.isNaN(dt.valueOf())
-                          ? dt.toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })
-                          : null;
+                <ul className="space-y-4">
+                  {newsletters.slice(0, 10).map((n, idx) => {
+                    const dt = n.receivedAt ? new Date(n.receivedAt) : null;
+                    const dtText =
+                      dt && !Number.isNaN(dt.valueOf())
+                        ? dt.toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : null;
 
-                      return (
-                        <li key={idx} className="border-b border-[color:var(--rule)] pb-3 last:border-b-0 last:pb-0">
-                          <div className="text-[13px] leading-6">
+                    return (
+                      <li
+                        key={idx}
+                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                      >
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="font-display text-lg">
                             {n.url ? (
                               <a
                                 href={n.url}
@@ -1228,21 +1147,29 @@ export default async function Page() {
                               <span>{n.subject}</span>
                             )}
                           </div>
-                          <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
-                            {shortSender(n.sender)}
-                            {dtText ? ` · ${dtText}` : ""}
+                          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] shrink-0">
+                            {dtText ?? "Recent"}
                           </div>
-                          {n.summary ? (
-                            <p className="mt-2 text-[12px] leading-5 text-[color:var(--muted-ink)]">
-                              {n.summary}
-                            </p>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </details>
-              ) : null}
+                        </div>
+
+                        <div className="mt-1 text-xs text-[color:var(--muted-ink)]">
+                          {shortSender(n.sender)}
+                        </div>
+
+                        {n.summary ? (
+                          <p className="mt-3 text-[13px] leading-6 text-[color:var(--muted-ink)]">
+                            {n.summary}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                  No newsletters yet.
+                </div>
+              )}
             </Section>
           </div>
 
