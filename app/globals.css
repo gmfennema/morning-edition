@@ -5,6 +5,16 @@
   --background: #fbf7ef;
   --foreground: #141414;
 
+  --card: #fffdf8;
+  --card-foreground: #141414;
+  --border: rgba(20, 20, 20, 0.12);
+  --link: #141414;
+  --link-underline: rgba(20, 20, 20, 0.25);
+  --link-underline-hover: rgba(20, 20, 20, 0.5);
+  --chart-track: #f1ece3;
+  --chart-fill: #141414;
+  --chart-value: #141414;
+
   /* Used by Tailwind arbitrary color utilities in the UI */
   --muted-ink: rgba(20, 20, 20, 0.62);
   --rule: rgba(20, 20, 20, 0.14);
@@ -24,6 +34,16 @@
   :root {
     --background: #0b0b0c;
     --foreground: #f3f3f4;
+
+    --card: #151518;
+    --card-foreground: #f3f3f4;
+    --border: rgba(243, 243, 244, 0.14);
+    --link: #f3f3f4;
+    --link-underline: rgba(243, 243, 244, 0.3);
+    --link-underline-hover: rgba(243, 243, 244, 0.6);
+    --chart-track: #1c1c20;
+    --chart-fill: #f3f3f4;
+    --chart-value: #f3f3f4;
 
     --muted-ink: rgba(243, 243, 244, 0.68);
     --rule: rgba(243, 243, 244, 0.18);

@@ -8,7 +8,6 @@ export type StoredBriefing = {
 export const LATEST_KEY = "morning-edition:latest";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __morningEditionRedis: Redis | undefined;
 }
 
@@ -41,7 +40,7 @@ export async function saveLatestBriefing(data: unknown) {
 
 export async function readLatestBriefing(): Promise<StoredBriefing | null> {
   const redis = getRedis();
-  const raw = await redis.get<any>(LATEST_KEY);
+  const raw = await redis.get<unknown>(LATEST_KEY);
   if (!raw) return null;
 
   // Handle case where Upstash might return a stringified JSON vs an object

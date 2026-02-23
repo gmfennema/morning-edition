@@ -961,13 +961,13 @@ function MetricsSection({ metrics }: { metrics: AnyObj | null }) {
                 <div className="w-8 text-[10px] font-medium uppercase text-[color:var(--muted-ink)]">
                   {day}
                 </div>
-                <div className="relative h-3 flex-1 bg-slate-50 border border-slate-100/50">
+                <div className="relative h-3 flex-1 bg-[color:var(--chart-track)] border border-[color:var(--border)]">
                   <div
-                    className="absolute inset-y-0 left-0 bg-slate-900 transition-all duration-500"
+                    className="absolute inset-y-0 left-0 bg-[color:var(--chart-fill)] transition-all duration-500"
                     style={{ width: `${(count / maxVol) * 100}%` }}
                   />
                 </div>
-                <div className="w-8 text-right text-[10px] font-mono text-slate-900">
+                <div className="w-8 text-right text-[10px] font-mono text-[color:var(--chart-value)]">
                   {count}
                 </div>
               </div>
@@ -1050,7 +1050,7 @@ export default async function Page() {
         <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 items-start">
           <div className="lg:col-span-12">
             <Section title="Top Briefing" kicker="2-sentence synthesis">
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-6 text-center">
+              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-6 text-center">
                 {executiveSummary ? (
                   <p className="mx-auto max-w-3xl text-lg leading-relaxed italic">
                     <span aria-hidden="true">&ldquo;</span>
@@ -1080,7 +1080,7 @@ export default async function Page() {
                                 href={item.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                                className="text-[color:var(--link)] underline decoration-[color:var(--link-underline)] underline-offset-4 hover:decoration-[color:var(--link-underline-hover)]"
                               >
                                 {item.headline}
                               </a>
@@ -1103,7 +1103,7 @@ export default async function Page() {
                   ))}
                 </ul>
               ) : (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5 text-sm text-[color:var(--muted-ink)]">
                   No headlines yet.
                 </div>
               )}
@@ -1130,7 +1130,7 @@ export default async function Page() {
                     return (
                       <li
                         key={idx}
-                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5"
+                        className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5"
                       >
                         <div className="flex items-baseline justify-between gap-3">
                           <div className="font-display text-lg">
@@ -1139,7 +1139,7 @@ export default async function Page() {
                                 href={n.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="underline decoration-black/20 underline-offset-4 hover:decoration-black/40"
+                                className="text-[color:var(--link)] underline decoration-[color:var(--link-underline)] underline-offset-4 hover:decoration-[color:var(--link-underline-hover)]"
                               >
                                 {n.subject}
                               </a>
@@ -1166,7 +1166,7 @@ export default async function Page() {
                   })}
                 </ul>
               ) : (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5 text-sm text-[color:var(--muted-ink)]">
                   No newsletters yet.
                 </div>
               )}
@@ -1175,7 +1175,7 @@ export default async function Page() {
 
           <div className="lg:col-span-4 space-y-6">
             <Section title="Weather & Local" kicker="Rita Ranch intel">
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <div className="flex items-baseline justify-between">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
                     Today
@@ -1201,7 +1201,7 @@ export default async function Page() {
 
             <Section title="Mission Outlook" kicker="48-hour view">
               <div className="space-y-4">
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
                     Today
                   </div>
@@ -1221,7 +1221,7 @@ export default async function Page() {
                   )}
                 </div>
 
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-4">
+                <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
                     Tomorrow
                   </div>
@@ -1247,7 +1247,7 @@ export default async function Page() {
               title="Balances"
               kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
             >
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 {balances ? (
                   <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                     <div>
@@ -1308,13 +1308,13 @@ export default async function Page() {
                   : "disk snapshot"
               }
             >
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <StorageSection storage={storage} />
               </div>
             </Section>
 
             <Section title="Intelligence Metrics" kicker="burn rate & pulse">
-              <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5">
+              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <MetricsSection metrics={metrics} />
               </div>
             </Section>
@@ -1341,7 +1341,7 @@ export default async function Page() {
                     return (
                       <div
                         key={idx}
-                        className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 h-full"
+                        className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5 h-full"
                       >
                         <div className="flex items-baseline justify-between gap-3">
                           <div className="font-display text-lg">{name}</div>
@@ -1350,7 +1350,7 @@ export default async function Page() {
                               href={vercelUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs uppercase tracking-[0.18em] text-[color:var(--muted-ink)] underline decoration-black/20 underline-offset-4"
+                              className="text-xs uppercase tracking-[0.18em] text-[color:var(--link)] underline decoration-[color:var(--link-underline)] underline-offset-4 hover:decoration-[color:var(--link-underline-hover)]"
                             >
                               Live
                             </a>
@@ -1391,7 +1391,7 @@ export default async function Page() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-sm border border-[color:var(--rule)] bg-white/60 p-5 text-sm text-[color:var(--muted-ink)]">
+                <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5 text-sm text-[color:var(--muted-ink)]">
                   No projects yet.
                 </div>
               )}

@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
       type: typeof val,
       value: val 
     });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: message });
   }
 }
