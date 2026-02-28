@@ -28,16 +28,36 @@ function ymd(d: Date): string {
 
 function parseStoredBriefing(raw: unknown): StoredBriefing | null {
   if (!raw) return null;
+
+  const normalizeObj = (obj: unknown): StoredBriefing | null => {
+    if (!obj || typeof obj !== "object") return null;
+    const o = obj as Record<string, unknown>;
+
+    // Canonical stored shape
+    if (typeof o.storedAt === "string" && Object.prototype.hasOwnProperty.call(o, "data")) {
+      return o as unknown as StoredBriefing;
+    }
+
+    // If someone stored just the briefing payload, wrap it.
+    return { storedAt: new Date().toISOString(), data: o };
+  };
+
   if (typeof raw === "string") {
     try {
-      return JSON.parse(raw) as StoredBriefing;
+      const parsed = JSON.parse(raw);
+      return normalizeObj(parsed);
     } catch {
       return null;
     }
   }
-  if (typeof raw === "object") return raw as StoredBriefing;
+
+  if (typeof raw === "object") {
+    return normalizeObj(raw);
+  }
+
   return null;
 }
+
 
 export async function saveLatestBriefing(data: unknown): Promise<StoredBriefing> {
   const storedAt = new Date().toISOString();
