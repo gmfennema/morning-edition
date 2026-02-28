@@ -17,7 +17,9 @@ export function middleware(req: NextRequest) {
     pathname === "/api/brief" ||
     pathname === "/api/brief/" ||
     pathname === "/api/debug" ||
-    pathname === "/api/debug/"
+    pathname === "/api/debug/" ||
+    pathname === "/api/audio/upload" ||
+    pathname === "/api/audio/upload/"
   ) {
     return NextResponse.next();
   }

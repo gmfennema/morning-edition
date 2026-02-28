@@ -1,3 +1,4 @@
+import { hasLatestAudio } from "../lib/audio";
 import { readLatestBriefing } from "../lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +120,33 @@ function asObj(x: unknown): AnyObj | null {
   return x as AnyObj;
 }
 
+const FIELD_INTEL_SUMMARY_MAX_CHARS = 600;
+
+function cleanInlineText(input: string): string {
+  return input.replace(/\s+/g, " ").trim();
+}
+
+function pickLongestText(candidates: Array<string | null | undefined>): string | null {
+  let best: string | null = null;
+  for (const c of candidates) {
+    if (typeof c !== "string") continue;
+    const cleaned = cleanInlineText(c);
+    if (!cleaned) continue;
+    if (!best || cleaned.length > best.length) best = cleaned;
+  }
+  return best;
+}
+
+function clampText(input: string, maxChars: number): string {
+  const s = cleanInlineText(input);
+  if (s.length <= maxChars) return s;
+
+  const slice = s.slice(0, maxChars + 1);
+  const lastSpace = slice.lastIndexOf(" ");
+  const cut = lastSpace >= Math.floor(maxChars * 0.7) ? lastSpace : maxChars;
+  return `${s.slice(0, cut).trimEnd()}…`;
+}
+
 function normalizeNews(brief: AnyObj | null): NewsItem[] {
   const fi = brief?.fieldIntelligence ?? brief?.field_intelligence ?? brief?.news;
   const fiObj = asObj(fi);
@@ -139,15 +167,27 @@ function normalizeNews(brief: AnyObj | null): NewsItem[] {
         headline:
           asText(o.headline ?? o.title ?? o.text ?? o.name) ??
           "(untitled headline)",
-        summary:
-          asText(
-            o.summary ??
-              o.dek ??
-              o.blurb ??
-              o.description ??
-              o.snippet ??
-              o.abstract,
-          ) ?? undefined,
+        summary: (() => {
+          const s = pickLongestText([
+            asText(o.summary),
+            asText(o.dek),
+            asText(o.blurb),
+            asText(o.description),
+            asText(o.snippet),
+            asText(o.abstract),
+            asText(
+              o.content ??
+                o.contentSnippet ??
+                o.content_snippet ??
+                o.fullText ??
+                o.full_text ??
+                o.body ??
+                o.text,
+            ),
+          ]);
+
+          return s ? clampText(s, FIELD_INTEL_SUMMARY_MAX_CHARS) : undefined;
+        })(),
         url: asText(o.url ?? o.link) ?? undefined,
         source: asText(o.source ?? o.outlet) ?? undefined,
         tag: asText(o.tag) ?? undefined,
@@ -1014,6 +1054,7 @@ export default async function Page() {
 
   const updatedAt = stored?.storedAt ? new Date(stored.storedAt) : null;
   const today = new Date();
+  const audioAvailable = await hasLatestAudio().catch(() => false);
 
   return (
     <div className="min-h-screen">
@@ -1046,6 +1087,26 @@ export default async function Page() {
             </div>
           </div>
         </header>
+
+        <div className="mt-6">
+          <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
+            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+              Audio briefing
+            </div>
+            {audioAvailable ? (
+              <audio
+                controls
+                preload="metadata"
+                src="/api/audio/latest"
+                className="w-full"
+              />
+            ) : (
+              <div className="text-sm text-[color:var(--muted-ink)]">
+                No audio briefing loaded yet.
+              </div>
+            )}
+          </div>
+        </div>
 
         <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 items-start">
           <div className="lg:col-span-12">
@@ -1093,7 +1154,7 @@ export default async function Page() {
                             {item.tag ? ` · ${item.tag}` : ""}
                           </div>
                           {item.summary ? (
-                            <p className="mt-2 text-[13px] leading-6 text-[color:var(--muted-ink)]">
+                            <p className="mt-2 text-[13px] leading-6 break-words text-[color:var(--muted-ink)]">
                               {item.summary}
                             </p>
                           ) : null}
