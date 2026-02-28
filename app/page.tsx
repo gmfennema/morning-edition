@@ -1070,7 +1070,7 @@ export default async function Page() {
             <Section title="Field Intelligence" kicker="AI / Tech news">
               {news.length ? (
                 <ul className="space-y-4">
-                  {news.slice(0, 12).map((item, idx) => (
+                  {news.slice(0, 6).map((item, idx) => (
                     <li key={idx} className="border-b border-[color:var(--rule)] pb-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
