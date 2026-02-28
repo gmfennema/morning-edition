@@ -1,49 +1,33 @@
-import { Redis } from "@upstash/redis";
+import { get, list, put } from "@vercel/blob";
 
 export type StoredBriefing = {
   storedAt: string;
   data: unknown;
 };
 
-export const LATEST_KEY = "morning-edition:latest";
+const LATEST_PATH = "morning-edition/latest.json";
+const HISTORY_PREFIX = "morning-edition/history/";
 
-declare global {
-  var __morningEditionRedis: Redis | undefined;
-}
+function getBlobToken(): string {
+  const t =
+    process.env.morning_edition_READ_WRITE_TOKEN ||
+    process.env.BLOB_READ_WRITE_TOKEN ||
+    process.env.VERCEL_BLOB_RW_TOKEN;
 
-function getRedis(): Redis {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-
-  if (!url || !token) {
+  if (!t) {
     throw new Error(
-      "KV_REST_API_URL / KV_REST_API_TOKEN env vars are required to use KV storage.",
+      "Missing Vercel Blob token. Set morning_edition_READ_WRITE_TOKEN (preferred) or BLOB_READ_WRITE_TOKEN.",
     );
   }
-
-  if (!global.__morningEditionRedis) {
-    global.__morningEditionRedis = new Redis({ url, token });
-  }
-  return global.__morningEditionRedis;
+  return t;
 }
 
-export async function saveLatestBriefing(data: unknown) {
-  const storedAt = new Date().toISOString();
-  const payload: StoredBriefing = { storedAt, data };
-
-  const redis = getRedis();
-  // Store as object to avoid double serialization issues with the Upstash SDK
-  await redis.set(LATEST_KEY, payload);
-
-  return payload;
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
-export async function readLatestBriefing(): Promise<StoredBriefing | null> {
-  const redis = getRedis();
-  const raw = await redis.get<unknown>(LATEST_KEY);
+function parseStoredBriefing(raw: unknown): StoredBriefing | null {
   if (!raw) return null;
-
-  // Handle case where Upstash might return a stringified JSON vs an object
   if (typeof raw === "string") {
     try {
       return JSON.parse(raw) as StoredBriefing;
@@ -51,6 +35,62 @@ export async function readLatestBriefing(): Promise<StoredBriefing | null> {
       return null;
     }
   }
+  if (typeof raw === "object") return raw as StoredBriefing;
+  return null;
+}
 
-  return raw as StoredBriefing;
+export async function saveLatestBriefing(data: unknown): Promise<StoredBriefing> {
+  const storedAt = new Date().toISOString();
+  const payload: StoredBriefing = { storedAt, data };
+  const token = getBlobToken();
+
+  const body = JSON.stringify(payload);
+  // latest
+  await put(LATEST_PATH, body, {
+    access: "private",
+    contentType: "application/json",
+    token,
+  });
+
+  // history (best-effort)
+  const histPath = `${HISTORY_PREFIX}${ymd(new Date())}.json`;
+  await put(histPath, body, {
+    access: "private",
+    contentType: "application/json",
+    token,
+  });
+
+  return payload;
+}
+
+export async function readLatestBriefing(): Promise<StoredBriefing | null> {
+  const token = getBlobToken();
+
+  // Prefer direct get by pathname.
+  try {
+    const res = await get(LATEST_PATH, { token, access: "private" });
+    if (!res) throw new Error("blob_not_found");
+    const txt = await new Response(res.stream).text();
+    return parseStoredBriefing(txt);
+  } catch {
+    // fall through
+  }
+
+  // Fallback: list + fetch first match
+  try {
+    const listed = await list({ prefix: LATEST_PATH, limit: 1, token });
+    const url = listed.blobs?.[0]?.url;
+    if (!url) return null;
+
+    const r = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!r.ok) return null;
+    const txt = await r.text();
+    return parseStoredBriefing(txt);
+  } catch {
+    return null;
+  }
 }
