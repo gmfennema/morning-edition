@@ -50,6 +50,7 @@ export async function saveLatestBriefing(data: unknown): Promise<StoredBriefing>
     access: "private",
     contentType: "application/json",
     token,
+    allowOverwrite: true,
   });
 
   // history (best-effort)
@@ -58,6 +59,7 @@ export async function saveLatestBriefing(data: unknown): Promise<StoredBriefing>
     access: "private",
     contentType: "application/json",
     token,
+    allowOverwrite: true,
   });
 
   return payload;
