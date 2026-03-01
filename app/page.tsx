@@ -1,5 +1,6 @@
 import { hasLatestAudio } from "../lib/audio";
 import { readLatestBriefing } from "../lib/storage";
+import { Icons } from "./components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -252,346 +253,11 @@ function normalizeNewsletters(brief: AnyObj | null): NewsletterItem[] {
     .filter(Boolean) as NewsletterItem[];
 }
 
-type NewsletterTakeaway = {
-  title: string;
-  bullets: string[];
-  sources: NewsletterItem[];
-};
-
-function stripHtmlToText(input: string): string {
-  return input
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<\s*br\s*\/?>/gi, "\n")
-    .replace(/<\s*\/(p|div|li|tr|h1|h2|h3)\s*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-}
-
-function cleanNewsletterText(input: string): string {
-  return input
-    .replace(/\r\n/g, "\n")
-    .replace(/[\t ]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s{3,}/g, " ")
-    .trim();
-}
-
-function getNewsletterBodyText(n: NewsletterItem): string | null {
-  const raw = (n.body ?? n.summary ?? "").trim();
-  if (!raw) return null;
-
-  const looksLikeHtml = /<[^>]+>/.test(raw);
-  const text = cleanNewsletterText(looksLikeHtml ? stripHtmlToText(raw) : raw);
-  if (!text) return null;
-
-  // Drop obvious boilerplate footers.
-  const footerMarkers = [
-    "unsubscribe",
-    "manage preferences",
-    "update your preferences",
-    "view in browser",
-    "privacy policy",
-    "terms of service",
-    "sponsored",
-    "advertisement",
-  ];
-
-  const lower = text.toLowerCase();
-  let cut = text.length;
-  for (const m of footerMarkers) {
-    const idx = lower.indexOf(m);
-    if (idx !== -1) cut = Math.min(cut, idx);
-  }
-
-  const trimmed = cleanNewsletterText(text.slice(0, cut));
-  return trimmed || null;
-}
-
-function splitIntoSentences(input: string): string[] {
-  const cleaned = input.replace(/\s+/g, " ").trim();
-  if (!cleaned) return [];
-
-  return cleaned
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9“"(])/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 function shortSender(sender: string | undefined): string {
   if (!sender) return "Unknown sender";
   const name = sender.split("<")[0]?.trim();
   return name || sender;
-}
-
-type TopicRule = { id: string; label: string; patterns: RegExp[]; weight: number };
-
-const NEWSLETTER_TOPIC_RULES: TopicRule[] = [
-  {
-    id: "ai",
-    label: "AI / models",
-    weight: 4,
-    patterns: [
-      /\bopenai\b/i,
-      /\banthropic\b/i,
-      /\bgpt-?\d*\b/i,
-      /\bllm\b/i,
-      /\btransformer\b/i,
-      /\brag\b/i,
-      /\bagents?\b/i,
-      /\bmodel\b/i,
-      /\bfine-?tune\b/i,
-      /\bgemini\b/i,
-      /\bclaude\b/i,
-    ],
-  },
-  {
-    id: "startups",
-    label: "Startups / product",
-    weight: 3,
-    patterns: [
-      /\bstartup\b/i,
-      /\bfounder\b/i,
-      /\bseed\b/i,
-      /\bseries [a-e]\b/i,
-      /\bvc\b/i,
-      /\bventure\b/i,
-      /\bproduct\b/i,
-      /\bpmf\b/i,
-      /\bgtm\b/i,
-      /\bpricing\b/i,
-    ],
-  },
-  {
-    id: "markets",
-    label: "Markets / macro",
-    weight: 3,
-    patterns: [
-      /\bfed\b/i,
-      /\brates?\b/i,
-      /\binflation\b/i,
-      /\btreasur(y|ies)\b/i,
-      /\bearnings\b/i,
-      /\bstocks?\b/i,
-      /\bmarkets?\b/i,
-      /\bindex\b/i,
-      /\bgdp\b/i,
-    ],
-  },
-  {
-    id: "bigtech",
-    label: "Big tech",
-    weight: 2,
-    patterns: [
-      /\bapple\b/i,
-      /\bgoogle\b/i,
-      /\bmicrosoft\b/i,
-      /\bmeta\b/i,
-      /\bamazon\b/i,
-      /\baws\b/i,
-      /\bnvidia\b/i,
-      /\btesla\b/i,
-    ],
-  },
-  {
-    id: "security",
-    label: "Security / privacy",
-    weight: 2,
-    patterns: [
-      /\bsecurity\b/i,
-      /\bvulnerability\b/i,
-      /\bcve-\d+/i,
-      /\bbreach\b/i,
-      /\bprivacy\b/i,
-      /\bencrypt\w*\b/i,
-    ],
-  },
-];
-
-function pickTopic(text: string): { topic: TopicRule; score: number } {
-  let best: { topic: TopicRule; score: number } | null = null;
-
-  for (const topic of NEWSLETTER_TOPIC_RULES) {
-    let score = 0;
-    for (const re of topic.patterns) {
-      if (re.test(text)) score += topic.weight;
-    }
-
-    if (!best || score > best.score) {
-      best = { topic, score };
-    }
-  }
-
-  return best ?? { topic: { id: "other", label: "Other", patterns: [], weight: 0 }, score: 0 };
-}
-
-function scoreChunk(text: string): number {
-  const lower = text.toLowerCase();
-
-  let score = 0;
-  const { score: topicScore } = pickTopic(text);
-  score += topicScore;
-
-  // Bonus for specificity.
-  if (/[\d]{2,}/.test(text)) score += 1;
-  if (/[\$%]/.test(text)) score += 1;
-  if (/\b(q[1-4]|fy\d{2,4})\b/i.test(text)) score += 1;
-
-  // Penalize boilerplate.
-  if (lower.includes("unsubscribe")) score -= 4;
-  if (lower.includes("sponsored")) score -= 2;
-  if (lower.includes("advertisement")) score -= 2;
-
-  // Prefer medium chunks: dense but readable.
-  const len = text.length;
-  if (len >= 220 && len <= 900) score += 2;
-  if (len < 140) score -= 2;
-  if (len > 1400) score -= 2;
-
-  return score;
-}
-
-function splitNewsletterIntoChunks(text: string): string[] {
-  const blocks = text
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/g)
-    .map((b) => b.trim())
-    .filter(Boolean);
-
-  const chunks: string[] = [];
-
-  for (const block of blocks) {
-    // Break out bullet-ish lines into their own chunk.
-    const lines = block
-      .split(/\n/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    const bulletLines = lines.filter((l) => /^[-*•]\s+/.test(l));
-    if (bulletLines.length >= 2) {
-      chunks.push(
-        bulletLines
-          .map((l) => l.replace(/^[-*•]\s+/, ""))
-          .join(" ")
-          .trim(),
-      );
-      continue;
-    }
-
-    chunks.push(block);
-  }
-
-  return chunks;
-}
-
-function dedupeStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const it of items) {
-    const key = it.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(it);
-  }
-  return out;
-}
-
-function buildNewsletterTakeaways(
-  newsletters: NewsletterItem[],
-  maxTakeaways = 3,
-): NewsletterTakeaway[] {
-  type Candidate = {
-    newsletter: NewsletterItem;
-    chunk: string;
-    score: number;
-    topicId: string;
-    topicLabel: string;
-  };
-
-  const candidates: Candidate[] = [];
-
-  for (const n of newsletters) {
-    const body = getNewsletterBodyText(n);
-    if (!body) continue;
-
-    const chunks = splitNewsletterIntoChunks(body)
-      .map((c) => cleanNewsletterText(c))
-      .filter((c) => c.length >= 120);
-
-    for (const chunk of chunks) {
-      const topic = pickTopic(chunk).topic;
-      candidates.push({
-        newsletter: n,
-        chunk,
-        score: scoreChunk(chunk),
-        topicId: topic.id,
-        topicLabel: topic.label,
-      });
-    }
-  }
-
-  if (!candidates.length) return [];
-
-  // Group by topic to keep takeaways diverse across newsletters.
-  const byTopic = new Map<string, Candidate[]>();
-  for (const c of candidates) {
-    if (!byTopic.has(c.topicId)) byTopic.set(c.topicId, []);
-    byTopic.get(c.topicId)!.push(c);
-  }
-
-  for (const arr of byTopic.values()) {
-    arr.sort((a, b) => b.score - a.score);
-  }
-
-  const topicLeaders = Array.from(byTopic.values())
-    .map((arr) => arr[0]!)
-    .sort((a, b) => b.score - a.score);
-
-  const picked: Candidate[] = topicLeaders.slice(0, maxTakeaways);
-
-  // If we have fewer than 2 topics, fill from the next best chunks overall.
-  if (picked.length < 2) {
-    const remaining = [...candidates]
-      .sort((a, b) => b.score - a.score)
-      .filter((c) => !picked.includes(c));
-
-    while (picked.length < Math.min(2, maxTakeaways) && remaining.length) {
-      picked.push(remaining.shift()!);
-    }
-  }
-
-  return picked.map((p) => {
-    const topicCandidates = byTopic.get(p.topicId) ?? [p];
-
-    // Pull up to two distinct source newsletters for this topic.
-    const chosen: Candidate[] = [];
-    const seenSource = new Set<string>();
-
-    for (const c of topicCandidates) {
-      const key = (c.newsletter.url ?? c.newsletter.subject).toLowerCase();
-      if (seenSource.has(key)) continue;
-      seenSource.add(key);
-      chosen.push(c);
-      if (chosen.length >= 2) break;
-    }
-
-    const bullets = dedupeStrings(
-      chosen.flatMap((c) => splitIntoSentences(c.chunk).slice(0, 2)),
-    ).slice(0, 5);
-
-    const sources = chosen.map((c) => c.newsletter);
-
-    return {
-      title: p.topicLabel,
-      bullets: bullets.length ? bullets : [p.chunk],
-      sources,
-    };
-  });
 }
 
 function normalizeCalendar(brief: AnyObj | null): {
@@ -939,16 +605,21 @@ function StorageSection({ storage }: { storage: StorageVitals | null }) {
 function Section({
   title,
   kicker,
+  icon,
   children,
 }: {
   title: string;
   kicker?: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="border-t border-[color:var(--rule)] pt-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-xl tracking-tight">{title}</h2>
+        <div className="flex items-center gap-2">
+          {icon ? <span className="text-[color:var(--muted-ink)]">{icon}</span> : null}
+          <h2 className="font-display text-xl tracking-tight">{title}</h2>
+        </div>
         {kicker ? (
           <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
             {kicker}
@@ -1023,12 +694,6 @@ export default async function Page() {
   const stored = await readLatestBriefing().catch(() => null);
   const brief = (stored?.data ?? null) as AnyObj | null;
 
-  const executiveSummary =
-    asText(brief?.executiveSummary) ??
-    asText(brief?.executive_summary) ??
-    asText(brief?.summary) ??
-    null;
-
   const weatherRaw = brief?.weather ?? brief?.local;
   const weather = asObj(weatherRaw);
   const weatherNarrative = asText(weather?.narrative ?? weather?.summary);
@@ -1093,8 +758,11 @@ export default async function Page() {
 
         <div className="mt-6">
           <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-              Audio briefing
+            <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+              <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--rule)]/40 p-1">
+                <Icons.Audio />
+              </span>
+              <span>Audio briefing</span>
             </div>
             {audioAvailable ? (
               <audio
@@ -1112,26 +780,8 @@ export default async function Page() {
         </div>
 
         <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 items-start">
-          <div className="lg:col-span-12">
-            <Section title="Top Briefing" kicker="2-sentence synthesis">
-              <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-6 text-center">
-                {executiveSummary ? (
-                  <p className="mx-auto max-w-3xl text-lg leading-relaxed italic">
-                    <span aria-hidden="true">&ldquo;</span>
-                    {executiveSummary}
-                    <span aria-hidden="true">&rdquo;</span>
-                  </p>
-                ) : (
-                  <p className="text-[15px] leading-7 text-[color:var(--muted-ink)]">
-                    Waiting on the first briefing payload.
-                  </p>
-                )}
-              </div>
-            </Section>
-          </div>
-
           <div className="lg:col-span-8 space-y-6">
-            <Section title="Field Intelligence" kicker="AI / Tech news">
+            <Section title="Field Intelligence" kicker="AI / Tech news" icon={<Icons.FieldIntel />}>
               {news.length ? (
                 <ul className="space-y-4">
                   {news.slice(0, 6).map((item, idx) => (
@@ -1176,6 +826,7 @@ export default async function Page() {
             <Section
               title="Newsletter Digest"
               kicker="Latest updates (Gmail label: newsletters)"
+              icon={<Icons.Newsletter />}
             >
               {newsletters.length ? (
                 <ul className="space-y-4">
@@ -1238,7 +889,7 @@ export default async function Page() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            <Section title="Weather & Local" kicker="Rita Ranch intel">
+            <Section title="Weather & Local" kicker="Rita Ranch intel" icon={<Icons.Weather />}>
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <div className="flex items-baseline justify-between">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
@@ -1263,7 +914,7 @@ export default async function Page() {
               </div>
             </Section>
 
-            <Section title="Mission Outlook" kicker="48-hour view">
+            <Section title="Mission Outlook" kicker="48-hour view" icon={<Icons.Mission />}>
               <div className="space-y-4">
                 <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
@@ -1310,6 +961,7 @@ export default async function Page() {
             <Section
               title="Balances"
               kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
+              icon={<Icons.Balances />}
             >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 {balances ? (
@@ -1371,13 +1023,14 @@ export default async function Page() {
                   ? `${Math.round(storage.root.percentUsed)}% used`
                   : "disk snapshot"
               }
+              icon={<Icons.Storage />}
             >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <StorageSection storage={storage} />
               </div>
             </Section>
 
-            <Section title="Intelligence Metrics" kicker="burn rate & pulse">
+            <Section title="Intelligence Metrics" kicker="burn rate & pulse" icon={<Icons.Metrics />}>
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <MetricsSection metrics={metrics} />
               </div>
@@ -1385,7 +1038,7 @@ export default async function Page() {
           </div>
 
           <div className="lg:col-span-12">
-            <Section title="Project Pulse" kicker="active work">
+            <Section title="Project Pulse" kicker="active work" icon={<Icons.ProjectPulse />}>
               {projects.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.slice(0, 6).map((p, idx) => {
