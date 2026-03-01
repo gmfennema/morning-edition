@@ -121,6 +121,19 @@ function asObj(x: unknown): AnyObj | null {
   return x as AnyObj;
 }
 
+function formatDisplayDate(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Phoenix",
+  });
+}
+
 const FIELD_INTEL_SUMMARY_MAX_CHARS = 600;
 
 function cleanInlineText(input: string): string {
@@ -1067,12 +1080,17 @@ export default async function Page() {
               icon={<Icons.ProjectPulse size={22} />}
             >
               {projects.length ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {projects.slice(0, 6).map((p, idx) => {
                     const o = asObj(p) ?? ({} as AnyObj);
                     const name =
                       asText(o.name ?? o.project) ?? `Project ${idx + 1}`;
                     const vercelUrl = asText(o.vercelUrl ?? o.vercel_url) ?? undefined;
+                    const repo = asText(o.repo ?? o.repository);
+                    const branch = asText(o.branch ?? o.ref);
+                    const status = asText(o.status);
+                    const focus =
+                      asText(o.focus ?? o.summary ?? o.description) ?? undefined;
 
                     const recentWins: unknown[] = Array.isArray(o.recentWins)
                       ? (o.recentWins as unknown[])
@@ -1082,10 +1100,38 @@ export default async function Page() {
                       ? (o.stillToDo as unknown[])
                       : [];
 
+                    const primaryText =
+                      focus ??
+                      asText(stillToDo[0]) ??
+                      asText(recentWins[0]) ??
+                      undefined;
+
+                    const commit =
+                      asObj(o.lastCommit ?? o.last_commit ?? o.commit ?? o.lastPush) ??
+                      null;
+                    const commitMessage =
+                      asText(commit?.message ?? commit?.title ?? commit?.summary) ??
+                      undefined;
+                    const commitSha =
+                      asText(
+                        commit?.sha ?? commit?.hash ?? commit?.commit ?? commit?.id,
+                      ) ?? undefined;
+                    const commitUrl = asText(commit?.url ?? commit?.link) ?? undefined;
+                    const commitWhen =
+                      formatDisplayDate(
+                        asText(commit?.date ?? commit?.when ?? commit?.timestamp),
+                      ) ?? undefined;
+
+                    const metadata = [
+                      repo ?? null,
+                      branch ? `@${branch}` : null,
+                      status ?? null,
+                    ].filter(Boolean) as string[];
+
                     return (
                       <div
                         key={idx}
-                        className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5 h-full"
+                        className="flex h-full flex-col rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5"
                       >
                         <div className="flex items-baseline justify-between gap-3">
                           <div className="font-display text-lg">{name}</div>
@@ -1101,33 +1147,97 @@ export default async function Page() {
                           ) : null}
                         </div>
 
+                        {metadata.length ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {metadata.map((item, i) => (
+                              <span
+                                key={i}
+                                className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-ink)]"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {primaryText ? (
+                          <p className="mt-4 text-sm leading-6 text-[color:var(--foreground)]">
+                            {primaryText}
+                          </p>
+                        ) : null}
+
                         {recentWins.length ? (
-                          <div className="mt-3">
-                            <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                              Recent wins
+                          <div className="mt-4">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+                              Wins
                             </div>
-                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                              {recentWins.slice(0, 5).map((w, i) => (
-                                <li key={i} className="leading-6">
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {recentWins.slice(0, 6).map((w, i) => (
+                                <div
+                                  key={i}
+                                  className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-3 py-1 text-xs text-[color:var(--foreground)]"
+                                >
                                   {asText(w) ?? JSON.stringify(w)}
-                                </li>
+                                </div>
                               ))}
-                            </ul>
+                            </div>
                           </div>
                         ) : null}
 
                         {stillToDo.length ? (
-                          <div className="mt-3">
-                            <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
-                              Still to do
+                          <div className="mt-4">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
+                              Next
                             </div>
-                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted-ink)]">
-                              {stillToDo.slice(0, 5).map((t, i) => (
-                                <li key={i} className="leading-6">
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {stillToDo.slice(0, 6).map((t, i) => (
+                                <div
+                                  key={i}
+                                  className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-3 py-1 text-xs text-[color:var(--muted-ink)]"
+                                >
                                   {asText(t) ?? JSON.stringify(t)}
-                                </li>
+                                </div>
                               ))}
-                            </ul>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {commitMessage || commitSha ? (
+                          <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
+                            {commitUrl ? (
+                              <a
+                                href={commitUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex flex-wrap items-center gap-2 underline decoration-[color:var(--link-underline)] underline-offset-2 hover:decoration-[color:var(--link-underline-hover)]"
+                              >
+                                {commitSha ? (
+                                  <span className="font-mono uppercase">
+                                    {commitSha.slice(0, 7)}
+                                  </span>
+                                ) : null}
+                                {commitMessage ? <span>{commitMessage}</span> : null}
+                                {commitWhen ? (
+                                  <span className="text-[color:var(--muted-ink)]">
+                                    · {commitWhen}
+                                  </span>
+                                ) : null}
+                              </a>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-2">
+                                {commitSha ? (
+                                  <span className="font-mono uppercase">
+                                    {commitSha.slice(0, 7)}
+                                  </span>
+                                ) : null}
+                                {commitMessage ? <span>{commitMessage}</span> : null}
+                                {commitWhen ? (
+                                  <span className="text-[color:var(--muted-ink)]">
+                                    · {commitWhen}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
                           </div>
                         ) : null}
                       </div>
