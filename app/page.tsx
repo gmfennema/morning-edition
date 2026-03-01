@@ -1054,6 +1054,7 @@ export default async function Page() {
 
   const updatedAt = stored?.storedAt ? new Date(stored.storedAt) : null;
   const today = new Date();
+  const tz = "America/Phoenix";
   const audioAvailable = await hasLatestAudio().catch(() => false);
 
   return (
@@ -1072,6 +1073,7 @@ export default async function Page() {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
+                timeZone: tz,
               })}
             </div>
             <div className="hidden h-1 w-1 rounded-full bg-[color:var(--rule)] md:block" />
@@ -1082,6 +1084,7 @@ export default async function Page() {
                     day: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
+                    timeZone: tz,
                   })}`
                 : "No briefing loaded yet"}
             </div>
