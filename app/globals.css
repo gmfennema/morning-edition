@@ -14,6 +14,8 @@
   --chart-track: #f1ece3;
   --chart-fill: #141414;
   --chart-value: #141414;
+  --card-shadow: 0 1px 3px rgba(20, 20, 20, 0.06), 0 4px 12px rgba(20, 20, 20, 0.04);
+  --accent-green: #2d6a4f;
 
   /* Fonts (local/system only — avoid network fetch during build) */
   --font-geist-sans: ui-sans-serif, system-ui, -apple-system,
@@ -51,6 +53,8 @@
     --chart-track: #1c1c20;
     --chart-fill: #f3f3f4;
     --chart-value: #f3f3f4;
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.12);
+    --accent-green: #52b788;
 
     --muted-ink: rgba(243, 243, 244, 0.68);
     --rule: rgba(243, 243, 244, 0.18);

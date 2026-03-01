@@ -191,12 +191,12 @@ function normalizeNews(brief: AnyObj | null): NewsItem[] {
             asText(o.abstract),
             asText(
               o.content ??
-                o.contentSnippet ??
-                o.content_snippet ??
-                o.fullText ??
-                o.full_text ??
-                o.body ??
-                o.text,
+              o.contentSnippet ??
+              o.content_snippet ??
+              o.fullText ??
+              o.full_text ??
+              o.body ??
+              o.text,
             ),
           ]);
 
@@ -240,22 +240,22 @@ function normalizeNewsletters(brief: AnyObj | null): NewsletterItem[] {
         summary:
           asText(
             o.summary ??
-              o.snippet ??
-              o.blurb ??
-              o.description ??
-              o.abstract,
+            o.snippet ??
+            o.blurb ??
+            o.description ??
+            o.abstract,
           ) ?? undefined,
         body:
           asText(
             o.body ??
-              o.text ??
-              o.plainText ??
-              o.plain_text ??
-              o.content ??
-              o.emailBody ??
-              o.email_body ??
-              o.message ??
-              o.html,
+            o.text ??
+            o.plainText ??
+            o.plain_text ??
+            o.content ??
+            o.emailBody ??
+            o.email_body ??
+            o.message ??
+            o.html,
           ) ?? undefined,
         url: asText(o.url ?? o.gmailUrl ?? o.gmail_url ?? o.link) ?? undefined,
         receivedAt:
@@ -329,10 +329,10 @@ function normalizeBalances(brief: AnyObj | null): Balances | null {
   const retirementTotal =
     asNumber(
       b.retirementTotal ??
-        b.retirement_total ??
-        b.retirementTotalUsd ??
-        b.retirement_total_usd ??
-        b.retirement,
+      b.retirement_total ??
+      b.retirementTotalUsd ??
+      b.retirement_total_usd ??
+      b.retirement,
     ) ?? undefined;
 
   if (
@@ -371,10 +371,10 @@ function normalizeStorage(brief: AnyObj | null): StorageVitals | null {
   const totalBytes =
     asNumber(
       rootObj.totalBytes ??
-        rootObj.total_bytes ??
-        rootObj.total ??
-        rootObj.sizeBytes ??
-        rootObj.size_bytes,
+      rootObj.total_bytes ??
+      rootObj.total ??
+      rootObj.sizeBytes ??
+      rootObj.size_bytes,
     ) ?? undefined;
 
   const usedBytes =
@@ -383,19 +383,19 @@ function normalizeStorage(brief: AnyObj | null): StorageVitals | null {
   const freeBytes =
     asNumber(
       rootObj.freeBytes ??
-        rootObj.free_bytes ??
-        rootObj.availBytes ??
-        rootObj.availableBytes ??
-        rootObj.available_bytes ??
-        rootObj.free,
+      rootObj.free_bytes ??
+      rootObj.availBytes ??
+      rootObj.availableBytes ??
+      rootObj.available_bytes ??
+      rootObj.free,
     ) ?? undefined;
 
   const percentUsed =
     asNumber(
       rootObj.percentUsed ??
-        rootObj.percent_used ??
-        rootObj.capacityPercent ??
-        rootObj.capacity_percent,
+      rootObj.percent_used ??
+      rootObj.capacityPercent ??
+      rootObj.capacity_percent,
     ) ??
     (typeof rootObj.capacity === "string"
       ? asNumber(rootObj.capacity.replace(/%$/, ""))
@@ -444,13 +444,13 @@ function normalizeStorage(brief: AnyObj | null): StorageVitals | null {
     generatedAt,
     root: hasRoot
       ? {
-          mount: rootMount,
-          filesystem,
-          totalBytes,
-          usedBytes,
-          freeBytes,
-          percentUsed,
-        }
+        mount: rootMount,
+        filesystem,
+        totalBytes,
+        usedBytes,
+        freeBytes,
+        percentUsed,
+      }
       : undefined,
     documents: hasDocs || documentsPath ? { path: documentsPath, bytes: documentsBytes } : undefined,
     topFolders: hasTop ? topFolders : undefined,
@@ -762,12 +762,12 @@ export default async function Page() {
             <div className="text-xs italic text-[color:var(--muted-ink)]">
               {updatedAt
                 ? `Updated ${updatedAt.toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    timeZone: tz,
-                  })}`
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  timeZone: tz,
+                })}`
                 : "No briefing loaded yet"}
             </div>
           </div>
@@ -856,11 +856,11 @@ export default async function Page() {
                     const dtText =
                       dt && !Number.isNaN(dt.valueOf())
                         ? dt.toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })
                         : null;
 
                     return (
@@ -1131,109 +1131,135 @@ export default async function Page() {
                     return (
                       <div
                         key={idx}
-                        className="flex h-full flex-col rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5"
+                        className="flex h-full flex-col border-t-2 border-[color:var(--foreground)] rounded-sm bg-[color:var(--card)] p-5"
+                        style={{ boxShadow: "var(--card-shadow)" }}
                       >
-                        <div className="flex items-baseline justify-between gap-3">
-                          <div className="font-display text-lg">{name}</div>
+                        {/* Header: name + status dot + live link */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <h3 className="font-display text-xl leading-tight tracking-tight">
+                              {name}
+                            </h3>
+                            {status ? (
+                              <span
+                                className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: "var(--accent-green)" }}
+                                title={status}
+                              />
+                            ) : null}
+                          </div>
                           {vercelUrl ? (
                             <a
                               href={vercelUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs uppercase tracking-[0.18em] text-[color:var(--link)] underline decoration-[color:var(--link-underline)] underline-offset-4 hover:decoration-[color:var(--link-underline-hover)]"
+                              className="shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] underline decoration-[color:var(--link-underline)] underline-offset-4 hover:decoration-[color:var(--link-underline-hover)] transition-colors"
                             >
-                              Live
+                              Live ↗
                             </a>
                           ) : null}
                         </div>
 
-                        {metadata.length ? (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {metadata.map((item, i) => (
-                              <span
-                                key={i}
-                                className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-ink)]"
-                              >
-                                {item}
-                              </span>
-                            ))}
+                        {/* Metadata line: repo / @branch */}
+                        {repo || branch ? (
+                          <div className="mt-1.5 font-mono text-[11px] text-[color:var(--muted-ink)]">
+                            {repo ? <span>{repo}</span> : null}
+                            {repo && branch ? (
+                              <span className="mx-1 text-[color:var(--rule)]">/</span>
+                            ) : null}
+                            {branch ? <span>@{branch}</span> : null}
                           </div>
                         ) : null}
 
+                        {/* Focus / description */}
                         {primaryText ? (
-                          <p className="mt-4 text-sm leading-6 text-[color:var(--foreground)]">
+                          <p className="mt-4 font-[var(--font-display)] italic text-[13.5px] leading-6 text-[color:var(--foreground)] border-l-2 border-[color:var(--rule)] pl-3.5">
                             {primaryText}
                           </p>
                         ) : null}
 
+                        {/* Recent Wins */}
                         {recentWins.length ? (
-                          <div className="mt-4">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-                              Wins
+                          <div className="mt-5">
+                            <div className="text-[9px] font-bold uppercase tracking-[0.25em] text-[color:var(--muted-ink)] border-b border-[color:var(--rule)] pb-1.5 mb-2.5">
+                              Recent Wins
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {recentWins.slice(0, 6).map((w, i) => (
-                                <div
+                            <ul className="space-y-1.5">
+                              {recentWins.slice(0, 4).map((w, i) => (
+                                <li
                                   key={i}
-                                  className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-3 py-1 text-xs text-[color:var(--foreground)]"
+                                  className="flex items-start gap-2 text-[13px] leading-5"
                                 >
-                                  {asText(w) ?? JSON.stringify(w)}
-                                </div>
+                                  <span className="mt-0.5 shrink-0 text-[color:var(--accent-green)] text-xs">✓</span>
+                                  <span>{asText(w) ?? JSON.stringify(w)}</span>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           </div>
                         ) : null}
 
+                        {/* Up Next */}
                         {stillToDo.length ? (
                           <div className="mt-4">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-                              Next
+                            <div className="text-[9px] font-bold uppercase tracking-[0.25em] text-[color:var(--muted-ink)] border-b border-[color:var(--rule)] pb-1.5 mb-2.5">
+                              Up Next
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {stillToDo.slice(0, 6).map((t, i) => (
-                                <div
+                            <ul className="space-y-1.5">
+                              {stillToDo.slice(0, 4).map((t, i) => (
+                                <li
                                   key={i}
-                                  className="rounded-full border border-[color:var(--border)] bg-[color:var(--chart-track)] px-3 py-1 text-xs text-[color:var(--muted-ink)]"
+                                  className="flex items-start gap-2 text-[13px] leading-5 text-[color:var(--muted-ink)]"
                                 >
-                                  {asText(t) ?? JSON.stringify(t)}
-                                </div>
+                                  <span className="mt-0.5 shrink-0 text-xs">→</span>
+                                  <span>{asText(t) ?? JSON.stringify(t)}</span>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           </div>
                         ) : null}
 
+                        {/* Spacer to push commit footer to bottom */}
+                        <div className="flex-1" />
+
+                        {/* Commit footer */}
                         {commitMessage || commitSha ? (
-                          <div className="mt-4 border-t border-[color:var(--rule)] pt-3 text-xs text-[color:var(--muted-ink)]">
+                          <div className="mt-5 border-t border-[color:var(--rule)] pt-3 text-[11px] text-[color:var(--muted-ink)]">
                             {commitUrl ? (
                               <a
                                 href={commitUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex flex-wrap items-center gap-2 underline decoration-[color:var(--link-underline)] underline-offset-2 hover:decoration-[color:var(--link-underline-hover)]"
+                                className="flex flex-wrap items-baseline gap-1.5 hover:text-[color:var(--foreground)] transition-colors"
                               >
+                                <span className="text-[9px]">◆</span>
                                 {commitSha ? (
-                                  <span className="font-mono uppercase">
+                                  <span className="font-mono uppercase tracking-wide">
                                     {commitSha.slice(0, 7)}
                                   </span>
                                 ) : null}
-                                {commitMessage ? <span>{commitMessage}</span> : null}
+                                {commitMessage ? (
+                                  <span className="truncate">{commitMessage}</span>
+                                ) : null}
                                 {commitWhen ? (
-                                  <span className="text-[color:var(--muted-ink)]">
-                                    · {commitWhen}
+                                  <span className="shrink-0 ml-auto text-[10px]">
+                                    {commitWhen}
                                   </span>
                                 ) : null}
                               </a>
                             ) : (
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-baseline gap-1.5">
+                                <span className="text-[9px]">◆</span>
                                 {commitSha ? (
-                                  <span className="font-mono uppercase">
+                                  <span className="font-mono uppercase tracking-wide">
                                     {commitSha.slice(0, 7)}
                                   </span>
                                 ) : null}
-                                {commitMessage ? <span>{commitMessage}</span> : null}
+                                {commitMessage ? (
+                                  <span className="truncate">{commitMessage}</span>
+                                ) : null}
                                 {commitWhen ? (
-                                  <span className="text-[color:var(--muted-ink)]">
-                                    · {commitWhen}
+                                  <span className="shrink-0 ml-auto text-[10px]">
+                                    {commitWhen}
                                   </span>
                                 ) : null}
                               </div>
