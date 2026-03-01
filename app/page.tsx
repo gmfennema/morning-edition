@@ -616,8 +616,12 @@ function Section({
   return (
     <section className="border-t border-[color:var(--rule)] pt-4">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {icon ? <span className="text-[color:var(--muted-ink)]">{icon}</span> : null}
+        <div className="flex items-center gap-3">
+          {icon ? (
+            <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--rule)]/40 p-1.5 text-[color:var(--muted-ink)]">
+              {icon}
+            </span>
+          ) : null}
           <h2 className="font-display text-xl tracking-tight">{title}</h2>
         </div>
         {kicker ? (
@@ -759,8 +763,8 @@ export default async function Page() {
         <div className="mt-6">
           <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)]">
-              <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--rule)]/40 p-1">
-                <Icons.Audio />
+              <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--rule)]/40 p-1.5">
+                <Icons.Audio size={22} />
               </span>
               <span>Audio briefing</span>
             </div>
@@ -781,7 +785,11 @@ export default async function Page() {
 
         <main className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 items-start">
           <div className="lg:col-span-8 space-y-6">
-            <Section title="Field Intelligence" kicker="AI / Tech news" icon={<Icons.FieldIntel />}>
+            <Section
+              title="Field Intelligence"
+              kicker="AI / Tech news"
+              icon={<Icons.FieldIntel size={22} />}
+            >
               {news.length ? (
                 <ul className="space-y-4">
                   {news.slice(0, 6).map((item, idx) => (
@@ -825,8 +833,8 @@ export default async function Page() {
 
             <Section
               title="Newsletter Digest"
-              kicker="Latest updates (Gmail label: newsletters)"
-              icon={<Icons.Newsletter />}
+              kicker="newsletters"
+              icon={<Icons.Newsletter size={22} />}
             >
               {newsletters.length ? (
                 <ul className="space-y-4">
@@ -847,8 +855,11 @@ export default async function Page() {
                         key={idx}
                         className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5"
                       >
-                        <div className="flex items-baseline justify-between gap-3">
-                          <div className="font-display text-lg">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3 font-display text-lg">
+                            <span className="inline-flex items-center justify-center rounded-full bg-[color:var(--rule)]/40 p-1.5 text-[color:var(--muted-ink)]">
+                              <Icons.Newsletter size={24} />
+                            </span>
                             {n.url ? (
                               <a
                                 href={n.url}
@@ -862,7 +873,7 @@ export default async function Page() {
                               <span>{n.subject}</span>
                             )}
                           </div>
-                          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] shrink-0">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-ink)] shrink-0 sm:self-start">
                             {dtText ?? "Recent"}
                           </div>
                         </div>
@@ -889,7 +900,11 @@ export default async function Page() {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            <Section title="Weather & Local" kicker="Rita Ranch intel" icon={<Icons.Weather />}>
+            <Section
+              title="Weather & Local"
+              kicker="Rita Ranch intel"
+              icon={<Icons.Weather size={22} />}
+            >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <div className="flex items-baseline justify-between">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
@@ -914,7 +929,11 @@ export default async function Page() {
               </div>
             </Section>
 
-            <Section title="Mission Outlook" kicker="48-hour view" icon={<Icons.Mission />}>
+            <Section
+              title="Mission Outlook"
+              kicker="48-hour view"
+              icon={<Icons.Mission size={22} />}
+            >
               <div className="space-y-4">
                 <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted-ink)]">
@@ -961,7 +980,7 @@ export default async function Page() {
             <Section
               title="Balances"
               kicker={balances?.asOf ? `as of ${balances.asOf}` : "Google Sheet snapshot"}
-              icon={<Icons.Balances />}
+              icon={<Icons.Balances size={22} />}
             >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 {balances ? (
@@ -1023,14 +1042,18 @@ export default async function Page() {
                   ? `${Math.round(storage.root.percentUsed)}% used`
                   : "disk snapshot"
               }
-              icon={<Icons.Storage />}
+              icon={<Icons.Storage size={22} />}
             >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <StorageSection storage={storage} />
               </div>
             </Section>
 
-            <Section title="Intelligence Metrics" kicker="burn rate & pulse" icon={<Icons.Metrics />}>
+            <Section
+              title="Intelligence Metrics"
+              kicker="burn rate & pulse"
+              icon={<Icons.Metrics size={22} />}
+            >
               <div className="rounded-sm border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <MetricsSection metrics={metrics} />
               </div>
@@ -1038,7 +1061,11 @@ export default async function Page() {
           </div>
 
           <div className="lg:col-span-12">
-            <Section title="Project Pulse" kicker="active work" icon={<Icons.ProjectPulse />}>
+            <Section
+              title="Project Pulse"
+              kicker="active work"
+              icon={<Icons.ProjectPulse size={22} />}
+            >
               {projects.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.slice(0, 6).map((p, idx) => {
